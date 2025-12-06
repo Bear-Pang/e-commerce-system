@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的购物车 - 优购商城</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/global.css">
+  <link rel="stylesheet" href="/assets/css/pages/cart.css">
+</head>
+<body class="bg-gray-50 font-sans text-secondary">
+  <div id="app" class="min-h-screen flex flex-col">
+    <header id="header-container"></header>
+
+    <main class="flex-grow container mx-auto px-4 py-8">
+      <h2 class="text-2xl font-bold mb-6">我的购物车</h2>
+
+      <!-- 加载状态 -->
+      <div id="loading-container" class="bg-white rounded-lg p-8 text-center py-20">
+        <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+        <p class="text-gray-600">加载购物车中...</p>
+      </div>
+
+      <!-- 空购物车状态 -->
+      <div id="empty-container" class="hidden bg-white rounded-lg p-8 text-center py-20">
+        <i class="fa fa-shopping-cart text-6xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500 mb-6">您的购物车还是空的~</p>
+        <a href="/pages/product/list.html" class="btn-primary">去逛逛</a>
+      </div>
+
+      <!-- 购物车列表 -->
+      <div id="cart-container" class="hidden">
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <!-- 表头 -->
+          <div class="grid grid-cols-12 p-4 border-b font-medium">
+            <div class="col-span-1"><input type="checkbox" id="select-all"></div>
+            <div class="col-span-5">商品信息</div>
+            <div class="col-span-2 text-center">单价</div>
+            <div class="col-span-2 text-center">数量</div>
+            <div class="col-span-2 text-center">小计</div>
+          </div>
+
+          <!-- 购物车项列表（动态渲染） -->
+          <div id="cart-items"></div>
+        </div>
+
+        <!-- 结算区域 -->
+        <div class="bg-white rounded-lg shadow-sm p-4 mt-6 flex flex-col md:flex-row justify-between items-center">
+          <div class="mb-4 md:mb-0">
+            <label class="flex items-center">
+              <input type="checkbox" id="select-all-bottom" class="mr-2">
+              <span>全选</span>
+            </label>
+          </div>
+          <div class="flex items-center space-x-6">
+            <p>合计：<span id="total-price" class="text-primary font-bold text-xl">¥0.00</span></p>
+            <button id="checkout-btn" class="btn-primary">去结算</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer id="footer-container"></footer>
+  </div>
+
+  <script src="/assets/js/component-loader.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 加载公共组件
+      loadComponent('layout/header.html', '#header-container');
+      loadComponent('layout/footer.html', '#footer-container');
+      // 验证登录态
+      if (!localStorage.getItem('token')) {
+        alert('请先登录');
+        window.location.href = '/pages/user/login.html';
+        return;
+      }
+      fetchCartData();
+    });
+
+    // 获取购物车数据
+    async function fetchCartData() {
+      try {
+        const res = await axios.get('/api/cart/list', {
+          headers: { 'Authorization': localStorage.getItem('token') }
+        });
+        if (res.data.code === 200 && res.data.data.length > 0) {
+          renderCart(res.data.data);
+          calculateTotalPrice(); // 计算总价
+        } else {
+          document.getElementById('empty-container').classList.remove('hidden');
+          document.getElementById('loading-container').classList.add('hidden');
+        }
+      } catch (err) {
+        console.error('加载购物车失败', err);
+        alert('加载失败，请重试');
+      }
+    }
+
+    // 渲染购物车
+    function renderCart(items) {
+      const container = document.getElementById('cart-items');
+      container.innerHTML = '';
+
+      items.forEach(item => {
+        container.innerHTML += `
+          <div class="grid grid-cols-12 p-4 border-b items-center" data-cart-id="${item.id}">
+            <div class="col-span-1"><input type="checkbox" class="cart-item-check" onchange="calculateTotalPrice()"></div>
+            <div class="col-span-5 flex items-center">
+              <img src="${item.product.main_image || '/assets/image/error.jpg'}"
+                   alt="${item.product.name}" class="w-16 h-16 object-cover mr-4">
+              <span class="line-clamp-2">${item.product.name}</span>
+            </div>
+            <div class="col-span-2 text-center">¥${item.product.price.toFixed(2)}</div>
+            <div class="col-span-2 text-center">
+              <div class="flex justify-center">
+                <button class="px-2 border" onclick="changeQuantity(${item.id}, -1)">-</button>
+                <input type="number" value="${item.quantity}" min="1"
+                       class="w-12 text-center border-t border-b cart-quantity"
+                       onchange="updateQuantity(${item.id}, this.value)">
+                <button class="px-2 border" onclick="changeQuantity(${item.id}, 1)">+</button>
+              </div>
+            </div>
+            <div class="col-span-2 text-center text-primary cart-subtotal">
+              ¥${(item.product.price * item.quantity).toFixed(2)}
+            </div>
+          </div>
+        `;
+      });
+
+      // 显示购物车，隐藏加载状态
+      document.getElementById('cart-container').classList.remove('hidden');
+      document.getElementById('loading-container').classList.add('hidden');
+    }
+
+    // 数量调整函数（对接真实接口）
+    function changeQuantity(id, delta) {
+      const input = document.querySelector(`input[onchange="updateQuantity(${id}, this.value)"]`);
+      if (input) {
+        const newQty = parseInt(input.value) + delta;
+        if (newQty >= 1) {
+          updateQuantity(id, newQty);
+        }
+      }
+    }
+
+    // 更新购物车数量
+    async function updateQuantity(id, value) {
+      try {
+        const res = await axios.post('/api/cart/update', {
+          id: id,
+          quantity: parseInt(value)
+        }, {
+          headers: { 'Authorization': localStorage.getItem('token') }
+        });
+        if (res.data.code === 200) {
+          fetchCartData(); // 重新加载购物车
+        } else {
+          alert(res.data.msg || '更新数量失败');
+        }
+      } catch (err) {
+        console.error('更新购物车失败', err);
+        alert('网络错误，请重试');
+      }
+    }
+
+    // 计算选中商品总价
+    function calculateTotalPrice() {
+      let total = 0;
+      document.querySelectorAll('.cart-item-check:checked').forEach(checkbox => {
+        const row = checkbox.closest('[data-cart-id]');
+        const subtotal = row.querySelector('.cart-subtotal').textContent.replace('¥', '');
+        total += parseFloat(subtotal);
+      });
+      document.getElementById('total-price').textContent = `¥${total.toFixed(2)}`;
+    }
+
+    // 全选/取消全选
+    document.getElementById('select-all').addEventListener('change', function() {
+      const isChecked = this.checked;
+      document.querySelectorAll('.cart-item-check').forEach(checkbox => {
+        checkbox.checked = isChecked;
+      });
+      calculateTotalPrice();
+    });
+    document.getElementById('select-all-bottom').addEventListener('change', function() {
+      document.getElementById('select-all').checked = this.checked;
+      const isChecked = this.checked;
+      document.querySelectorAll('.cart-item-check').forEach(checkbox => {
+        checkbox.checked = isChecked;
+      });
+      calculateTotalPrice();
+    });
+
+    // 结算按钮点击（跳转到确认订单页）
+    document.getElementById('checkout-btn').addEventListener('click', function() {
+      const checkedItems = document.querySelectorAll('.cart-item-check:checked');
+      if (checkedItems.length === 0) {
+        alert('请选择要结算的商品');
+        return;
+      }
+      // 获取选中的购物车ID
+      const cartIds = Array.from(checkedItems).map(checkbox => {
+        return checkbox.closest('[data-cart-id]').dataset.cartId;
+      });
+      // 跳转到确认订单页（携带购物车ID）
+      window.location.href = `/pages/order/confirm.html?cartIds=${cartIds.join(',')}`;
+    });
+  </script>
+</body>
+</html>

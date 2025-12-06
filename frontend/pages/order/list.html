@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的订单 - 优购商城</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/global.css">
+  <link rel="stylesheet" href="/assets/css/pages/order.css">
+</head>
+<body class="bg-gray-50 font-sans text-secondary">
+  <div id="app" class="min-h-screen flex flex-col">
+    <header id="header-container"></header>
+
+    <main class="flex-grow container mx-auto px-4 py-8">
+      <h2 class="text-2xl font-bold mb-6">我的订单</h2>
+
+      <!-- 订单状态筛选 -->
+      <div class="bg-white rounded-lg p-4 mb-6">
+        <div class="flex flex-wrap gap-2">
+          <button class="px-4 py-2 rounded-md bg-primary text-white" onclick="fetchOrderList(1, 'all')">全部订单</button>
+          <button class="px-4 py-2 rounded-md hover:bg-gray-100" onclick="fetchOrderList(1, 0)">待付款</button>
+          <button class="px-4 py-2 rounded-md hover:bg-gray-100" onclick="fetchOrderList(1, 1)">待发货</button>
+          <button class="px-4 py-2 rounded-md hover:bg-gray-100" onclick="fetchOrderList(1, 2)">待收货</button>
+          <button class="px-4 py-2 rounded-md hover:bg-gray-100" onclick="fetchOrderList(1, 3)">已完成</button>
+        </div>
+      </div>
+
+      <!-- 订单列表容器 -->
+      <div id="order-container">
+        <!-- 加载状态 -->
+        <div id="loading-container" class="bg-white rounded-lg p-8 text-center py-20">
+          <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+          <p class="text-gray-600">加载订单中...</p>
+        </div>
+
+        <!-- 空订单状态 -->
+        <div id="empty-container" class="hidden bg-white rounded-lg p-8 text-center py-20">
+          <i class="fa fa-file-text-o text-6xl text-gray-300 mb-4"></i>
+          <p class="text-gray-500 mb-6">您暂无订单~</p>
+          <a href="/pages/product/list.html" class="btn-primary">去购物</a>
+        </div>
+
+        <!-- 订单列表（动态渲染） -->
+        <div id="order-list" class="hidden space-y-6"></div>
+      </div>
+
+      <!-- 分页组件 -->
+      <div id="pagination-container">
+        <!-- 引入分页组件 -->
+        <div id="pagination-component"></div>
+      </div>
+    </main>
+
+    <footer id="footer-container"></footer>
+  </div>
+
+  <script src="/assets/js/component-loader.js"></script>
+  <script>
+    let orderList = [];
+    // 全局pagination（适配loader中的renderPagination）
+    window.pagination = { page: 1, pageSize: 5, total: 0, totalPages: 0 };
+    let currentStatus = 'all'; // 当前筛选状态
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 加载公共组件
+      loadComponent('layout/header.html', '#header-container');
+      loadComponent('layout/footer.html', '#footer-container');
+      loadComponent('common/pagination.html', '#pagination-component');
+
+      // 验证登录态
+      if (!localStorage.getItem('token')) {
+        alert('请先登录');
+        window.location.href = '/pages/user/login.html';
+        return;
+      }
+
+      fetchOrderList();
+    });
+
+    // 获取订单列表（支持状态筛选）
+    async function fetchOrderList(page = 1, status = currentStatus) {
+      currentStatus = status;
+      window.pagination.page = page;
+
+      try {
+        // 构建请求参数
+        const params = {
+          page: page,
+          size: window.pagination.pageSize
+        };
+        // 状态筛选（all则不传递）
+        if (status !== 'all') {
+          params.status = status;
+        }
+
+        const res = await axios.get('/api/order/list', {
+          params: params,
+          headers: { 'Authorization': localStorage.getItem('token') }
+        });
+
+        if (res.data.code === 200) {
+          orderList = res.data.data.list;
+          // 更新全局pagination
+          window.pagination = {
+            page: res.data.data.page,
+            pageSize: res.data.data.pageSize,
+            total: res.data.data.total,
+            totalPages: res.data.data.totalPages
+          };
+          renderOrderList();
+          renderPagination(); // 调用loader中的分页渲染函数
+        } else {
+          document.getElementById('empty-container').classList.remove('hidden');
+          document.getElementById('loading-container').classList.add('hidden');
+        }
+      } catch (err) {
+        console.error('加载订单失败', err);
+        alert('加载失败，请重试');
+      }
+    }
+
+    // 渲染订单列表
+    function renderOrderList() {
+      const container = document.getElementById('order-list');
+      container.innerHTML = '';
+
+      orderList.forEach(order => {
+        container.innerHTML += `
+          <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center">
+              <div>订单编号：${order.id}</div>
+              <div class="text-primary">${getStatusText(order.status)}</div>
+            </div>
+            <div class="p-4">
+              ${order.items.map(item => `
+                <div class="flex items-center mb-4">
+                  <img src="${item.product.main_image || '/assets/image/error.jpg'}" alt="${item.product.name}" class="w-16 h-16 object-cover mr-4">
+                  <div class="flex-1">
+                    <p class="line-clamp-1">${item.product.name}</p>
+                    <p class="text-gray-500 text-sm">数量：${item.quantity}</p>
+                  </div>
+                  <div class="text-right">
+                    <p>¥${item.product.price.toFixed(2)}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="p-4 border-t flex justify-between items-center">
+              <div>合计：<span class="text-primary font-bold">¥${order.total_price.toFixed(2)}</span></div>
+              <div>
+                <button class="btn-outline" onclick="viewOrderDetail(${order.id})">查看详情</button>
+                ${getActionButton(order.status, order.id)}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.classList.remove('hidden');
+      document.getElementById('loading-container').classList.add('hidden');
+    }
+
+    // 订单状态文本
+    function getStatusText(status) {
+      const statusMap = { 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成' };
+      return statusMap[status] || '未知状态';
+    }
+
+    // 订单操作按钮
+    function getActionButton(status, orderId) {
+      switch(status) {
+        case 0: return `<button class="btn-primary ml-2" onclick="payOrder(${orderId})">去付款</button>`;
+        case 2: return `<button class="btn-primary ml-2" onclick="confirmReceipt(${orderId})">确认收货</button>`;
+        default: return '';
+      }
+    }
+
+    // 分页切换（与分页组件联动）
+    function changePage(page) {
+      if (page < 1 || page > window.pagination.totalPages) return;
+      fetchOrderList(page, currentStatus);
+    }
+
+    // 订单操作函数
+    function viewOrderDetail(id) {
+      window.location.href = `/pages/order/detail.html?id=${id}`;
+    }
+
+    // 支付订单
+    async function payOrder(id) {
+      try {
+        const res = await axios.post('/api/order/pay', { order_id: id }, {
+          headers: { 'Authorization': localStorage.getItem('token') }
+        });
+        if (res.data.code === 200) {
+          alert('支付成功');
+          fetchOrderList(window.pagination.page, currentStatus); // 刷新列表
+        } else {
+          alert(res.data.msg || '支付失败');
+        }
+      } catch (err) {
+        console.error('支付失败', err);
+        alert('网络错误，请重试');
+      }
+    }
+
+    // 确认收货（示例逻辑）
+    function confirmReceipt(id) {
+      if (confirm('确认收到商品吗？')) {
+        // 此处可对接确认收货接口
+        alert('确认收货成功');
+        fetchOrderList(window.pagination.page, currentStatus);
+      }
+    }
+  </script>
+</body>
+</html>

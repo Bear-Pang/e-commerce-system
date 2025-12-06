@@ -1,0 +1,43 @@
+frontend/
+├── public/                # 静态资源根目录（直接访问的HTML入口）
+│   ├── index.html         # 单页应用入口文件（所有页面基于此挂载）
+│   └── favicon.ico        # 网站图标
+├── pages/                 # 核心业务页面（每个页面对应一个HTML模块/组件）
+│   ├── user/              # 用户模块页面
+│   │   ├── login.html     # 登录页
+│   │   ├── register.html  # 注册页
+│   │   ├── profile.html   # 个人中心页
+│   │   └── address.html   # 地址管理页（含增删改）
+│   ├── product/           # 商品模块页面
+│   │   ├── list.html      # 商品列表页（含筛选、搜索）
+│   │   ├── detail.html    # 商品详情页
+│   │   └── manage.html    # 商品管理页（管理员）
+│   ├── cart/              # 购物车模块页面
+│   │   └── cart.html      # 购物车列表页
+│   ├── order/             # 订单模块页面
+│   │   ├── confirm.html   # 确认订单页
+│   │   ├── list.html      # 订单列表页
+│   │   └── detail.html    # 订单详情页
+│   ├── pay/               # 支付模块页面
+│   │   ├── pay.html       # 支付页（选择渠道）
+│   │   └── result.html    # 支付结果页
+│   └── review/            # 评价模块页面
+│       ├── submit.html    # 评价提交页
+│       └── list.html      # 评价列表页（商品维度）
+├── components/            # 公共可复用组件（HTML片段，供页面引用）
+│   ├── layout/            # 布局组件
+│   │   ├── header.html    # 头部导航栏（含logo、搜索框、用户入口）
+│   │   ├── footer.html    # 页脚（版权、链接）
+│   │   └── sidebar.html   # 分类侧边栏（商品列表页用）
+│   ├── common/            # 通用功能组件
+│   │   ├── pagination.html# 分页组件（商品列表、订单列表共用）
+│   │   ├── dialog.html    # 弹窗组件（登录、提示共用）
+│   │   └── loading.html   # 加载状态组件
+│   └── business/          # 业务相关组件
+│       ├── product-card.html # 商品卡片（列表页复用）
+│       ├── order-item.html   # 订单项（订单列表复用）
+│       └── star-rating.html  # 星级评分（评价页复用）
+└── assets/                # 静态资源（非HTML文件，支撑页面展示）
+    ├── image/               # 图片资源（商品图、图标等）
+    ├── css/               # 样式文件（全局样式、模块样式）
+    └── js/                # 脚本文件（工具函数、接口请求等

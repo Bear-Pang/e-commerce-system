@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品详情 - 优购商城</title>
+  <!-- 外部资源（与其他页面一致） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+  <!-- 静态资源：PyCharm路径前缀 -->
+  <link rel="stylesheet" href="/assets/css/global.css">
+  <link rel="stylesheet" href="/assets/css/pages/product-detail.css">
+
+  <!-- Tailwind配置（保持风格统一） -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: '#FF4400', secondary: '#333333', light: '#F5F5F5' },
+          fontFamily: { sans: ['PingFang SC', 'Helvetica Neue', 'Arial', 'sans-serif'] },
+        },
+      }
+    }
+  </script>
+
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .btn-primary { @apply bg-primary text-white px-6 py-3 rounded-md transition-all hover:bg-primary/90 active:scale-95; }
+      .btn-outline { @apply border border-primary text-primary px-6 py-3 rounded-md transition-all hover:bg-primary/5; }
+      .product-detail-shadow { @apply shadow-sm hover:shadow-md transition-shadow; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans text-secondary">
+  <div id="app" class="min-h-screen flex flex-col">
+    <!-- 公共组件 -->
+    <header id="header-container"></header>
+
+    <!-- 主体内容：预留动态渲染容器，加载时显示loading -->
+    <main class="flex-grow container mx-auto px-4 py-8 md:py-12">
+      <div id="product-detail-container" class="hidden">
+        <!-- 动态渲染的商品详情内容 -->
+      </div>
+      <!-- 加载提示 -->
+      <div id="loading-container" class="bg-white rounded-lg p-8 text-center py-20">
+        <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+        <p class="text-gray-600">正在加载商品详情...</p>
+      </div>
+      <!-- 加载失败提示 -->
+      <div id="error-container" class="hidden bg-white rounded-lg p-8 text-center py-20">
+        <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
+        <p class="text-gray-600" id="error-message">商品加载失败，请重试</p>
+        <button id="retry-btn" class="btn-primary mt-4">重新加载</button>
+      </div>
+    </main>
+
+    <!-- 公共组件 -->
+    <footer id="footer-container"></footer>
+  </div>
+
+  <!-- 脚本引入 -->
+  <script src="/assets/js/component-loader.js"></script>
+  <script src="/assets/js/axios.js"></script>
+  <script>
+    // 全局变量：存储商品数据
+    let productData = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // 1. 加载公共组件（header/footer）
+      loadComponent('layout/header.html', '#header-container', initHeaderEvents);
+      loadComponent('layout/footer.html', '#footer-container');
+
+      // 2. 获取URL中的商品ID（如：detail.html?id=1 → 商品ID=1）
+      const productId = getUrlParam('id');
+      if (!productId) {
+        showError('未指定商品ID');
+        return;
+      }
+
+      // 3. 调用后端接口，从数据库获取商品详情
+      fetchProductDetail(productId);
+
+      // 4. 绑定重新加载按钮事件
+      document.getElementById('retry-btn').addEventListener('click', () => fetchProductDetail(productId));
+    });
+
+    /**
+     * 从URL中获取参数（如?id=1）
+     * @param {string} key - 参数名
+     * @returns {string|null} 参数值
+     */
+    function getUrlParam(key) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(key);
+    }
+
+    /**
+     * 调用后端接口，获取商品详情（后续对接数据库时修改接口地址）
+     * @param {string|number} productId - 商品ID
+     */
+    function fetchProductDetail(productId) {
+      // 显示加载中，隐藏其他状态
+      showLoading();
+
+      // 后端接口地址（后续替换为你的真实接口，如：/api/product/getDetail）
+      const apiUrl = `/api/product/detail?id=${productId}`;
+
+      // 发送请求（axios）
+      axios.get(apiUrl)
+        .then(response => {
+          // 假设接口返回格式：{ code: 200, data: {...商品数据}, msg: 'success' }
+          const res = response.data;
+          if (res.code === 200 && res.data) {
+            productData = res.data;
+            renderProductDetail(); // 渲染商品详情
+          } else {
+            showError(res.msg || '商品数据异常');
+          }
+        })
+        .catch(error => {
+          console.error('接口请求失败：', error);
+          showError('网络错误或接口不可用');
+        });
+    }
+
+    /**
+     * 渲染商品详情（将数据库数据填充到页面）
+     */
+    function renderProductDetail() {
+      const container = document.getElementById('product-detail-container');
+
+      // 拼接HTML结构（所有数据来自productData，与数据库字段对应）
+      const detailHtml = `
+        <div class="bg-white rounded-lg p-4 md:p-8 product-detail-shadow">
+          <!-- 商品图片+信息 -->
+          <div class="flex flex-col md:flex-row gap-8">
+            <!-- 左侧图片区 -->
+            <div class="w-full md:w-1/2">
+              <img
+                src="${productData.mainImage || '/assets/image/error.jpg'}"
+                alt="${productData.name || '商品图片'}"
+                class="w-full h-auto rounded-lg object-cover"
+                onerror="this.src='/assets/image/error.jpg'"
+              >
+              <!-- 缩略图（数据库返回多张图片时渲染） -->
+              <div class="flex gap-3 mt-4">
+                ${productData.thumbnailImages && productData.thumbnailImages.length > 0
+                  ? productData.thumbnailImages.map((img, index) => `
+                      <img src="${img}" alt="缩略图${index+1}" class="w-20 h-20 rounded object-cover cursor-pointer ${index === 0 ? 'border-2 border-primary' : 'hover:border-2 hover:border-primary'}" onclick="switchMainImage('${img}')">
+                    `).join('')
+                  : `
+                      <img src="${productData.mainImage || '/assets/image/error.jpg'}" alt="缩略图" class="w-20 h-20 rounded object-cover cursor-pointer border-2 border-primary">
+                    `
+                }
+              </div>
+            </div>
+
+            <!-- 右侧信息区 -->
+            <div class="w-full md:w-1/2 flex flex-col justify-between">
+              <div>
+                <h1 class="text-2xl md:text-3xl font-bold mb-3 line-clamp-2">${productData.name || '未知商品'}</h1>
+
+                <!-- 价格信息 -->
+                <div class="flex items-baseline gap-4 mb-6">
+                  <span class="text-3xl font-bold text-primary">¥${productData.price || 0}</span>
+                  ${productData.originalPrice ? `<span class="text-gray-400 line-through text-sm">¥${productData.originalPrice}</span>` : ''}
+                  ${productData.discount ? `<span class="text-green-500 text-sm">限时优惠 ¥${productData.originalPrice - productData.price}</span>` : ''}
+                </div>
+
+                <!-- 评分与销量 -->
+                <div class="flex items-center text-yellow-400 mb-6">
+                  ${generateStarRating(productData.rating || 0)} <!-- 动态生成星级 -->
+                  <span class="text-gray-500 ml-2">${productData.rating || 0}分 (${productData.commentCount || 0}条评价)</span>
+                  <span class="ml-4 text-gray-500 text-sm">已售 ${productData.salesCount || 0} 件</span>
+                </div>
+
+                <!-- 商品属性（从数据库动态渲染） -->
+                <div class="space-y-6 mb-8">
+                  <!-- 内存版本（数据库返回的属性列表） -->
+                  ${productData.memoryOptions && productData.memoryOptions.length > 0
+                    ? `
+                        <div>
+                          <label class="block text-sm font-medium mb-2">内存版本</label>
+                          <div class="flex gap-3 flex-wrap">
+                            ${productData.memoryOptions.map(option => `
+                              <button class="border ${option.isSelected ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary'} px-4 py-2 rounded-md text-sm" onclick="selectAttribute('memory', '${option.value}')">
+                                ${option.value}
+                              </button>
+                            `).join('')}
+                          </div>
+                        </div>
+                      `
+                    : ''
+                  }
+
+                  <!-- 机身颜色（数据库返回的属性列表） -->
+                  ${productData.colorOptions && productData.colorOptions.length > 0
+                    ? `
+                        <div>
+                          <label class="block text-sm font-medium mb-2">机身颜色</label>
+                          <div class="flex gap-3 flex-wrap">
+                            ${productData.colorOptions.map(option => `
+                              <button class="border ${option.isSelected ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary'} px-4 py-2 rounded-md text-sm" onclick="selectAttribute('color', '${option.value}')">
+                                ${option.value}
+                              </button>
+                            `).join('')}
+                          </div>
+                        </div>
+                      `
+                    : ''
+                  }
+
+                  <!-- 购买数量 -->
+                  <div>
+                    <label class="block text-sm font-medium mb-2">购买数量</label>
+                    <div class="flex items-center w-32">
+                      <button class="border border-gray-300 w-10 h-10 flex items-center justify-center rounded-l-md" onclick="changeQuantity(-1)">-</button>
+                      <input type="number" id="quantity-input" value="1" min="1" max="${productData.stock || 10}" class="border-t border-b border-gray-300 w-full h-10 text-center">
+                      <button class="border border-gray-300 w-10 h-10 flex items-center justify-center rounded-r-md" onclick="changeQuantity(1)">+</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 库存提示 -->
+                <div class="flex items-center ${productData.stock > 0 ? 'text-green-500' : 'text-red-500'} text-sm mb-8">
+                  <i class="fa ${productData.stock > 0 ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
+                  <span>${productData.stock > 0 ? `库存充足（剩余 ${productData.stock} 件）` : '库存不足，暂时无法购买'}</span>
+                </div>
+              </div>
+
+              <!-- 操作按钮 -->
+              <div class="flex flex-col sm:flex-row gap-4">
+                <button class="btn-primary w-full sm:w-1/2 flex items-center justify-center gap-2" onclick="addToCart()">
+                  <i class="fa fa-shopping-cart"></i> 加入购物车
+                </button>
+                <button class="btn-outline w-full sm:w-1/2 flex items-center justify-center gap-2" onclick="buyNow()" ${productData.stock <= 0 ? 'disabled' : ''}>
+                  <i class="fa fa-bolt"></i> 立即购买
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 标签页 -->
+          <div class="mt-12 border-t border-gray-200">
+            <div class="flex border-b border-gray-200">
+              <button class="py-4 px-6 font-medium text-primary border-b-2 border-primary">商品详情</button>
+              <button class="py-4 px-6 font-medium text-gray-500 hover:text-primary">规格参数</button>
+              <button class="py-4 px-6 font-medium text-gray-500 hover:text-primary">用户评价</button>
+              <button class="py-4 px-6 font-medium text-gray-500 hover:text-primary">售后保障</button>
+            </div>
+            <!-- 详情内容（数据库返回的富文本/普通文本） -->
+            <div class="p-6 text-gray-600 space-y-4">
+              ${productData.description || '暂无商品详情描述'}
+              <!-- 详情图（数据库返回的详情图片） -->
+              ${productData.detailImages && productData.detailImages.length > 0
+                ? productData.detailImages.map(img => `
+                    <img src="${img}" alt="商品详情图" class="w-full h-auto rounded-lg mt-4" onerror="this.src='/assets/image/error.jpg'">
+                  `).join('')
+                : ''
+              }
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 填充HTML并显示
+      container.innerHTML = detailHtml;
+      container.classList.remove('hidden');
+      document.getElementById('loading-container').classList.add('hidden');
+    }
+
+    /**
+     * 生成星级评分（根据数据库返回的评分值）
+     * @param {number} rating - 评分（0-5）
+     * @returns {string} 星级HTML
+     */
+    function generateStarRating(rating) {
+      const fullStar = Math.floor(rating); // 满星数量
+      const hasHalfStar = rating % 1 >= 0.5; // 是否有半星
+      const emptyStar = 5 - fullStar - (hasHalfStar ? 1 : 0); // 空星数量
+
+      let starHtml = '';
+      // 满星
+      for (let i = 0; i < fullStar; i++) {
+        starHtml += '<i class="fa fa-star"></i>';
+      }
+      // 半星
+      if (hasHalfStar) {
+        starHtml += '<i class="fa fa-star-half-o"></i>';
+      }
+      // 空星
+      for (let i = 0; i < emptyStar; i++) {
+        starHtml += '<i class="fa fa-star-o"></i>';
+      }
+      return starHtml;
+    }
+
+    /**
+     * 切换主图（缩略图点击事件）
+     * @param {string} imgUrl - 缩略图路径
+     */
+    function switchMainImage(imgUrl) {
+      const mainImg = document.querySelector('.w-full.md\\:w-1\\/2 img');
+      mainImg.src = imgUrl;
+      // 切换缩略图选中状态
+      const thumbnails = document.querySelectorAll('.flex.gap-3 img');
+      thumbnails.forEach(thumb => thumb.classList.remove('border-2', 'border-primary'));
+      event.target.classList.add('border-2', 'border-primary');
+    }
+
+    /**
+     * 选择商品属性（内存/颜色）
+     * @param {string} type - 属性类型（memory/color）
+     * @param {string} value - 属性值（如8GB+128GB/曜石黑）
+     */
+    function selectAttribute(type, value) {
+      const buttons = document.querySelectorAll(`.${type === 'memory' ? 'memoryOptions' : 'colorOptions'} button`);
+      buttons.forEach(btn => {
+        if (btn.textContent.trim() === value) {
+          btn.classList.add('border-primary', 'bg-primary/5');
+          btn.classList.remove('border-gray-300');
+        } else {
+          btn.classList.remove('border-primary', 'bg-primary/5');
+          btn.classList.add('border-gray-300');
+        }
+      });
+      // 可在这里更新productData中的选中属性，方便后续加入购物车
+      if (type === 'memory') {
+        productData.selectedMemory = value;
+      } else if (type === 'color') {
+        productData.selectedColor = value;
+      }
+    }
+
+    /**
+     * 调整购买数量
+     * @param {number} step - 增减步长（+1/-1）
+     */
+    function changeQuantity(step) {
+      const input = document.getElementById('quantity-input');
+      let current = parseInt(input.value);
+      const max = parseInt(input.max);
+      const min = parseInt(input.min);
+      current += step;
+      input.value = Math.max(min, Math.min(max, current));
+    }
+
+    /**
+     * 加入购物车（后续对接购物车接口）
+     */
+    function addToCart() {
+      const quantity = parseInt(document.getElementById('quantity-input').value);
+      const selectedMemory = productData.selectedMemory || productData.memoryOptions[0]?.value;
+      const selectedColor = productData.selectedColor || productData.colorOptions[0]?.value;
+
+      // 验证选择
+      if (!selectedMemory || !selectedColor) {
+        alert('请选择商品属性（内存/颜色）');
+        return;
+      }
+
+      // 调用加入购物车接口（示例）
+      axios.post('/api/cart/add', {
+        productId: productData.id,
+        quantity: quantity,
+        memory: selectedMemory,
+        color: selectedColor
+      }).then(res => {
+        if (res.data.code === 200) {
+          alert('加入购物车成功！');
+        } else {
+          alert('加入购物车失败：' + res.data.msg);
+        }
+      }).catch(err => {
+        console.error('加入购物车失败：', err);
+        alert('加入购物车失败，请重试');
+      });
+    }
+
+    /**
+     * 立即购买（后续对接下单接口）
+     */
+    function buyNow() {
+      // 逻辑同加入购物车，可跳转到下单页面
+      const quantity = parseInt(document.getElementById('quantity-input').value);
+      const selectedMemory = productData.selectedMemory || productData.memoryOptions[0]?.value;
+      const selectedColor = productData.selectedColor || productData.colorOptions[0]?.value;
+
+      if (!selectedMemory || !selectedColor) {
+        alert('请选择商品属性（内存/颜色）');
+        return;
+      }
+
+      // 跳转到下单页（携带商品信息参数）
+      const orderUrl = `/pages/order/confirm.html?productId=${productData.id}&quantity=${quantity}&memory=${selectedMemory}&color=${selectedColor}`;
+      window.location.href = orderUrl;
+    }
+
+    /**
+     * 显示加载中状态
+     */
+    function showLoading() {
+      document.getElementById('loading-container').classList.remove('hidden');
+      document.getElementById('product-detail-container').classList.add('hidden');
+      document.getElementById('error-container').classList.add('hidden');
+    }
+
+    /**
+     * 显示错误状态
+     * @param {string} message - 错误信息
+     */
+    function showError(message) {
+      document.getElementById('error-container').classList.remove('hidden');
+      document.getElementById('error-message').textContent = message;
+      document.getElementById('loading-container').classList.add('hidden');
+      document.getElementById('product-detail-container').classList.add('hidden');
+    }
+
+    /**
+     * 头部菜单事件
+     */
+    function initHeaderEvents() {
+      const menuBtn = document.querySelector('.fa-bars')?.parentElement;
+      menuBtn && menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
+    }
+  </script>
+</body>
+</html>

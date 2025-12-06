@@ -1,0 +1,73 @@
+<div class="space-y-6">
+  <!-- 商品分类 -->
+  <div>
+    <h3 class="font-bold text-lg mb-4 flex items-center">
+      <i class="fa fa-th-list text-primary mr-2"></i> 商品分类
+    </h3>
+    <ul class="space-y-1">
+      <li>
+        <a href="/pages/product/list.html?category=all" class="block py-2 px-3 rounded hover:bg-gray-100 text-primary font-medium">
+          全部商品
+        </a>
+      </li>
+      <li>
+        <a href="/pages/product/list.html?category=smart" class="block py-2 px-3 rounded hover:bg-gray-100">
+          智能家居 <span class="text-gray-500 text-sm ml-1">(42)</span>
+        </a>
+      </li>
+      <li>
+        <a href="/pages/product/list.html?category=digital" class="block py-2 px-3 rounded hover:bg-gray-100">
+          数码电子 <span class="text-gray-500 text-sm ml-1">(36)</span>
+        </a>
+      </li>
+      <li>
+        <a href="/pages/product/list.html?category=homeapp" class="block py-2 px-3 rounded hover:bg-gray-100">
+          家用电器 <span class="text-gray-500 text-sm ml-1">(28)</span>
+        </a>
+      </li>
+      <li>
+        <a href="/pages/product/list.html?category=kitchen" class="block py-2 px-3 rounded hover:bg-gray-100">
+          厨卫用品 <span class="text-gray-500 text-sm ml-1">(14)</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- 价格筛选 -->
+  <div>
+    <h3 class="font-bold text-lg mb-4 flex items-center">
+      <i class="fa fa-rmb text-primary mr-2"></i> 价格范围
+    </h3>
+    <div class="px-1">
+      <div class="flex gap-2 mb-4">
+        <input type="number" placeholder="最低" class="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:border-primary">
+        <span class="flex items-center">—</span>
+        <input type="number" placeholder="最高" class="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:border-primary">
+      </div>
+      <button class="btn-primary w-full">筛选</button>
+    </div>
+  </div>
+
+  <!-- 促销商品 -->
+  <div>
+    <h3 class="font-bold text-lg mb-4 flex items-center">
+      <i class="fa fa-fire text-primary mr-2"></i> 促销商品
+    </h3>
+    <div class="space-y-3">
+      <a href="/pages/product/detail.html?id=1003" class="flex gap-3">
+        <img src="/assets/image/product3.jpg" alt="促销商品" class="w-20 h-20 object-cover rounded">
+        <div>
+          <p class="text-sm line-clamp-2">全自动洗衣机 8kg大容量</p>
+          <p class="text-primary text-sm font-bold mt-1">¥899</p>
+        </div>
+      </a>
+      <a href="/pages/product/detail.html?id=1005" class="flex gap-3">
+        <img src="/assets/image/product5.jpg" alt="促销商品" class="w-20 h-20 object-cover rounded">
+        <div>
+          <p class="text-sm line-clamp-2">家用投影仪 1080P高清</p>
+          <p class="text-primary text-sm font-bold mt-1">¥1299</p>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>

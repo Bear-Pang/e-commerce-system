@@ -1,0 +1,50 @@
+<div class="flex justify-center gap-2 mt-8">
+  <button class="px-3 py-1 border rounded"
+          onclick="changePage(pagination.page - 1)"
+          ${pagination.page === 1 ? 'disabled class="opacity-50 cursor-not-allowed"' : ''}>
+    上一页
+  </button>
+
+  <!-- 页码生成逻辑 -->
+  <span id="page-numbers">
+    <!-- 动态生成页码，如：
+    <button class="px-3 py-1 border rounded bg-primary text-white" onclick="changePage(1)">1</button>
+    <button class="px-3 py-1 border rounded" onclick="changePage(2)">2</button>
+    -->
+  </span>
+
+  <button class="px-3 py-1 border rounded"
+          onclick="changePage(pagination.page + 1)"
+          ${pagination.page >= pagination.totalPages ? 'disabled class="opacity-50 cursor-not-allowed"' : ''}>
+    下一页
+  </button>
+</div>
+
+<script>
+  // 渲染分页（需在父页面调用）
+  function renderPagination() {
+    const container = document.getElementById('page-numbers');
+    container.innerHTML = '';
+
+    // 简化版页码生成（仅显示当前页、首页、尾页）
+    if (pagination.totalPages <= 1) return;
+
+    // 首页
+    container.innerHTML += `<button class="px-3 py-1 border rounded ${pagination.page === 1 ? 'bg-primary text-white' : ''}" onclick="changePage(1)">1</button>`;
+
+    // 中间省略号（当总页数较多时）
+    if (pagination.totalPages > 5 && pagination.page > 3) {
+      container.innerHTML += `<span class="px-3 py-1">...</span>`;
+    }
+
+    // 当前页附近页码（简化处理）
+    if (pagination.page > 1 && pagination.page < pagination.totalPages) {
+      container.innerHTML += `<button class="px-3 py-1 border rounded ${pagination.page === pagination.page ? 'bg-primary text-white' : ''}" onclick="changePage(${pagination.page})">${pagination.page}</button>`;
+    }
+
+    // 尾页
+    if (pagination.totalPages > 1) {
+      container.innerHTML += `<button class="px-3 py-1 border rounded ${pagination.page === pagination.totalPages ? 'bg-primary text-white' : ''}" onclick="changePage(${pagination.totalPages})">${pagination.totalPages}</button>`;
+    }
+  }
+</script>

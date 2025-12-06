@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电商平台 - 优购商城</title>
+  <!-- 外部资源 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+  <!-- Tailwind配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#FF4400',
+            secondary: '#333333',
+            light: '#F5F5F5'
+          },
+          fontFamily: {
+            sans: ['PingFang SC', 'Helvetica Neue', 'Arial', 'sans-serif']
+          },
+        },
+      }
+    }
+  </script>
+
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .nav-item-hover {
+        @apply relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-primary after:transition-all hover:after:w-full;
+      }
+      .btn-primary {
+        @apply bg-primary text-white px-4 py-2 rounded-md transition-all hover:bg-primary/90 active:scale-95;
+      }
+      .banner-shadow { @apply shadow-md; }
+      .category-card {
+        @apply bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow cursor-pointer;
+      }
+      .product-card-shadow { @apply shadow-md hover:shadow-lg transition-shadow; }
+      /* 隐藏滚动条 */
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans text-secondary">
+  <div id="app" class="min-h-screen flex flex-col">
+    <!-- 头部组件 -->
+    <header id="header-container"></header>
+
+    <!-- 主体内容 -->
+    <main class="flex-grow">
+      <!-- 轮播图区域 -->
+      <div id="banner-container" class="relative overflow-hidden">
+        <!-- 加载中状态 -->
+        <div class="banner-loading h-64 md:h-96 flex items-center justify-center bg-white">
+          <i class="fa fa-spinner fa-spin text-4xl text-primary"></i>
+        </div>
+      </div>
+
+      <!-- 分类导航区域 -->
+      <div class="container mx-auto px-4 py-8">
+        <h2 class="text-2xl font-bold mb-6 flex items-center">
+          <i class="fa fa-th-list text-primary mr-2"></i> 热门分类
+        </h2>
+        <div id="category-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <!-- 加载中状态 -->
+          <div class="col-span-full text-center py-8">
+            <i class="fa fa-spinner fa-spin text-2xl text-primary mb-2"></i>
+            <p class="text-gray-500">加载分类中...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 推荐商品（隐藏） -->
+      <div class="container mx-auto px-4 py-8 md:py-12 bg-white rounded-lg my-8 hidden">
+        <h2 class="text-2xl font-bold mb-6 flex items-center">
+          <i class="fa fa-fire text-primary mr-2"></i> 热门推荐
+        </h2>
+        <div id="recommend-loading" class="py-20 text-center">
+          <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+          <p class="text-gray-600">正在加载推荐商品...</p>
+        </div>
+        <div id="recommend-error" class="hidden py-20 text-center">
+          <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
+          <p class="text-gray-600" id="recommend-error-msg">商品加载失败</p>
+          <button id="recommend-retry" class="btn-primary mt-4">重新加载</button>
+        </div>
+        <div id="recommend-product-container" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+        <div class="text-center mt-10">
+          <a href="/pages/product/list.html" class="btn-primary inline-flex items-center">
+            查看全部商品 <i class="fa fa-arrow-right ml-2"></i>
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <!-- 底部组件 -->
+    <footer id="footer-container"></footer>
+  </div>
+
+  <!-- 脚本引入 -->
+  <script src="/assets/js/component-loader.js"></script>
+
+  <script>
+    let bannerList = [];
+    let categoryList = [];
+
+    // DOM加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('✅ DOM加载完成，开始初始化');
+      // 加载头部/底部组件
+      loadComponent('layout/header.html', '#header-container', initHeaderEvents);
+      loadComponent('layout/footer.html', '#footer-container');
+
+      // 延迟执行，确保axios已挂载
+      setTimeout(() => {
+        console.log('✅ 开始加载轮播图和分类');
+        fetchBannerData();
+        fetchCategoryData();
+      }, 100);
+    });
+
+    /**
+     * 轮播图加载 - 修复的关键点：从日志看接口返回的数据直接是data数组
+     */
+    function fetchBannerData() {
+      console.log('===== 轮播图接口请求开始 =====');
+      axios.get('/api/banner/list')
+        .then(res => {
+          console.log('接口返回完整数据：', res);
+
+          // 关键修复：根据日志，接口返回的data字段直接是数组，不是res.data.data
+          console.log('接口返回data字段：', res.data);
+          console.log('接口返回data类型：', typeof res.data);
+          console.log('接口返回data是数组吗：', Array.isArray(res.data));
+
+          if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+            bannerList = res.data; // 直接使用res.data，不是res.data.data
+            console.log('bannerList实际数据：', bannerList);
+            renderBanner();
+          } else if (res.data && res.data.code === 200 && Array.isArray(res.data.data) && res.data.data.length > 0) {
+            // 如果接口有包装结构，也支持
+            bannerList = res.data.data;
+            console.log('bannerList实际数据（包装结构）：', bannerList);
+            renderBanner();
+          } else {
+            console.log('进入默认图逻辑的原因：数据无效');
+            console.log('数据：', res.data);
+            renderDefaultBanner();
+          }
+        })
+        .catch(err => {
+          console.error('接口请求错误详情：', err);
+          renderDefaultBanner();
+        });
+    }
+
+    /**
+     * 渲染轮播图 - 修复版本
+     */
+    function renderBanner() {
+      const container = document.getElementById('banner-container');
+
+      // 检查数据是否有效
+      if (!bannerList || bannerList.length === 0) {
+        console.error('❌ bannerList为空或无效，使用默认轮播图');
+        renderDefaultBanner();
+        return;
+      }
+
+      console.log('✅ 开始渲染轮播图，使用bannerList数据');
+
+      // 动态生成轮播图HTML
+      let bannerHTML = '<div class="flex h-64 md:h-96 overflow-x-auto scrollbar-hide snap-x snap-mandatory">';
+
+      bannerList.forEach((banner, index) => {
+        // 根据接口返回的数据结构，字段是image_url（下划线）
+        const imageUrl = banner.image_url || banner.imageUrl || banner.url || banner.image || '';
+
+        // 确保有图片URL
+        if (!imageUrl) {
+          console.warn(`⚠️ 第${index + 1}个banner没有图片URL`, banner);
+          return;
+        }
+
+        // 生成图片HTML - 使用banner数据中的图片路径
+        const fullImageUrl = imageUrl.startsWith('http')
+          ? imageUrl
+          : `http://127.0.0.1:3000${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
+
+        bannerHTML += `
+          <div class="min-w-full h-full snap-start relative">
+            <img
+              src="${fullImageUrl}"
+              class="w-full h-full object-cover"
+              alt="${banner.title || `轮播图${index + 1}`}"
+              onerror="this.onerror=null;this.src='${window.location.origin}/assets/image/banner/banner-default.png'"
+            />
+            ${banner.title ? `
+              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
+                <h3 class="text-lg font-bold">${banner.title}</h3>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
+
+      bannerHTML += '</div>';
+
+      // 添加指示器（如果有多个banner）
+      if (bannerList.length > 1) {
+        bannerHTML += `
+          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+            ${bannerList.map((_, index) => `
+              <span
+                class="w-2 h-2 rounded-full cursor-pointer ${index === 0 ? 'bg-primary' : 'bg-white/50'}"
+                onclick="switchBanner(${index})"
+              ></span>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      container.innerHTML = bannerHTML;
+      console.log('✅ 轮播图渲染完成，使用了', bannerList.length, '个banner');
+    }
+
+    /**
+     * 渲染默认轮播图
+     */
+    function renderDefaultBanner() {
+      const container = document.getElementById('banner-container');
+      if (container) {
+        const defaultImageUrl = `${window.location.origin}/assets/image/banner/banner-default.png`;
+        container.innerHTML = `
+          <img
+            src="${defaultImageUrl}"
+            alt="默认轮播图"
+            class="w-full h-64 md:h-96 object-cover banner-shadow"
+          >
+        `;
+        console.log('✅ 渲染默认轮播图完成，路径：', defaultImageUrl);
+      }
+    }
+
+    /**
+     * 切换轮播图
+     */
+    function switchBanner(index) {
+      const bannerContainer = document.querySelector('.flex.overflow-x-auto.scrollbar-hide');
+      if (!bannerContainer) {
+        console.warn('⚠️ 轮播图容器未找到，切换失败');
+        return;
+      }
+      // 计算滚动距离
+      const bannerWidth = bannerContainer.offsetWidth;
+      bannerContainer.scrollTo({
+        left: bannerWidth * index,
+        behavior: 'smooth'
+      });
+
+      // 更新指示器状态
+      const indicators = document.querySelectorAll('.absolute.bottom-4 span');
+      indicators.forEach((item, i) => {
+        item.classList.toggle('bg-primary', i === index);
+        item.classList.toggle('bg-white/50', i !== index);
+      });
+    }
+
+    /**
+     * 分类加载
+     */
+    function fetchCategoryData() {
+      console.log('===== 分类接口请求开始 =====');
+      axios.get('/api/category/list')
+        .then(res => {
+          console.log('✅ 分类接口返回：', res.data);
+          // 注意：分类接口返回的是数组，不是包装结构
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            categoryList = res.data;
+            renderCategory();
+          } else {
+            renderDefaultCategory();
+          }
+        })
+        .catch(err => {
+          console.error('❌ 分类接口请求失败：', err);
+          renderDefaultCategory();
+        });
+    }
+
+    /**
+     * 渲染分类
+     */
+    function renderCategory() {
+      const container = document.getElementById('category-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      categoryList.forEach(cate => {
+        container.innerHTML += `
+          <div class="category-card" onclick="jumpToCategoryList('${cate.id}')">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
+              <i class="fa ${cate.icon || 'fa-mobile'} text-2xl text-primary"></i>
+            </div>
+            <h3 class="font-medium">${cate.name || '未知分类'}</h3>
+          </div>
+        `;
+      });
+    }
+
+    /**
+     * 渲染默认分类
+     */
+    function renderDefaultCategory() {
+      const container = document.getElementById('category-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const defaultCates = [
+        { name: '手机数码', icon: 'fa-mobile' },
+        { name: '电脑办公', icon: 'fa-laptop' },
+        { name: '家用电器', icon: 'fa-tv' },
+        { name: '服装鞋帽', icon: 'fa-shopping-bag' },
+        { name: '美妆护肤', icon: 'fa-gift' },
+        { name: '食品生鲜', icon: 'fa-apple' }
+      ];
+
+      defaultCates.forEach(cate => {
+        container.innerHTML += `
+          <div class="category-card" onclick="jumpToCategoryList('')">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
+              <i class="fa ${cate.icon} text-2xl text-primary"></i>
+            </div>
+            <h3 class="font-medium">${cate.name}</h3>
+          </div>
+        `;
+      });
+    }
+
+    /**
+     * 分类跳转
+     */
+    function jumpToCategoryList(categoryId) {
+      const url = `/pages/product/list.html${categoryId ? `?categoryId=${categoryId}` : ''}`;
+      window.location.href = url;
+    }
+
+    /**
+     * 头部事件初始化
+     */
+    function initHeaderEvents() {
+      const menuBtn = document.querySelector('.fa-bars')?.parentElement;
+      if (menuBtn) {
+        menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
+      }
+    }
+  </script>
+</body>
+</html>
