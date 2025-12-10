@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>电商平台 - 优购商城</title>
-  <!-- 外部资源 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.bootcdn.net/ajax/libs/axios/1.6.8/axios.min.js"></script>
 
-  <!-- Tailwind配置 -->
   <script>
     tailwind.config = {
       theme: {
@@ -26,7 +25,6 @@
     }
   </script>
 
-  <!-- 自定义工具类 -->
   <style type="text/tailwindcss">
     @layer utilities {
       .nav-item-hover {
@@ -52,174 +50,202 @@
   </style>
 </head>
 <body class="bg-gray-50 font-sans text-secondary">
-  <div id="app" class="min-h-screen flex flex-col">
-    <!-- 头部组件 -->
-    <header id="header-container"></header>
+<div id="app" class="min-h-screen flex flex-col">
+  <header id="header-container"></header>
 
-    <!-- 主体内容 -->
-    <main class="flex-grow">
-      <!-- 轮播图区域 -->
-      <div id="banner-container" class="relative overflow-hidden">
-        <!-- 加载中状态 -->
-        <div class="banner-loading h-64 md:h-96 flex items-center justify-center bg-white">
-          <i class="fa fa-spinner fa-spin text-4xl text-primary"></i>
+  <main class="flex-grow">
+    <div id="banner-container" class="relative overflow-hidden">
+      <div class="banner-loading h-64 md:h-96 flex items-center justify-center bg-white">
+        <i class="fa fa-spinner fa-spin text-4xl text-primary"></i>
+      </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+      <h2 class="text-2xl font-bold mb-6 flex items-center">
+        <i class="fa fa-th-list text-primary mr-2"></i> 热门分类
+      </h2>
+      <div id="category-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div class="col-span-full text-center py-8">
+          <i class="fa fa-spinner fa-spin text-2xl text-primary mb-2"></i>
+          <p class="text-gray-500">加载分类中...</p>
         </div>
       </div>
+    </div>
 
-      <!-- 分类导航区域 -->
-      <div class="container mx-auto px-4 py-8">
-        <h2 class="text-2xl font-bold mb-6 flex items-center">
-          <i class="fa fa-th-list text-primary mr-2"></i> 热门分类
-        </h2>
-        <div id="category-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <!-- 加载中状态 -->
-          <div class="col-span-full text-center py-8">
-            <i class="fa fa-spinner fa-spin text-2xl text-primary mb-2"></i>
-            <p class="text-gray-500">加载分类中...</p>
-          </div>
-        </div>
+    <div id="recommend-section" class="container mx-auto px-4 py-8 md:py-12 bg-white rounded-lg my-8">
+      <h2 class="text-2xl font-bold mb-6 flex items-center">
+        <i class="fa fa-fire text-primary mr-2"></i> 热门推荐
+      </h2>
+      <div id="recommend-loading" class="py-20 text-center">
+        <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+        <p class="text-gray-600">正在加载推荐商品...</p>
       </div>
-
-      <!-- 推荐商品（隐藏） -->
-      <div class="container mx-auto px-4 py-8 md:py-12 bg-white rounded-lg my-8 hidden">
-        <h2 class="text-2xl font-bold mb-6 flex items-center">
-          <i class="fa fa-fire text-primary mr-2"></i> 热门推荐
-        </h2>
-        <div id="recommend-loading" class="py-20 text-center">
-          <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
-          <p class="text-gray-600">正在加载推荐商品...</p>
-        </div>
-        <div id="recommend-error" class="hidden py-20 text-center">
-          <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
-          <p class="text-gray-600" id="recommend-error-msg">商品加载失败</p>
-          <button id="recommend-retry" class="btn-primary mt-4">重新加载</button>
-        </div>
-        <div id="recommend-product-container" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
-        <div class="text-center mt-10">
-          <a href="/pages/product/list.html" class="btn-primary inline-flex items-center">
-            查看全部商品 <i class="fa fa-arrow-right ml-2"></i>
-          </a>
-        </div>
+      <div id="recommend-error" class="hidden py-20 text-center">
+        <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
+        <p class="text-gray-600" id="recommend-error-msg">商品加载失败</p>
+        <button id="recommend-retry" class="btn-primary mt-4">重新加载</button>
       </div>
-    </main>
+      <div id="recommend-product-container" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+      <div id="recommend-more-btn-container" class="hidden text-center mt-10">
+        <a href="/pages/product/list.html" class="btn-primary inline-flex items-center">
+          查看全部商品 <i class="fa fa-arrow-right ml-2"></i>
+        </a>
+      </div>
+    </div>
+  </main>
 
-    <!-- 底部组件 -->
-    <footer id="footer-container"></footer>
-  </div>
+  <footer id="footer-container"></footer>
+</div>
 
-  <!-- 脚本引入 -->
-  <script src="/assets/js/component-loader.js"></script>
+<script src="/assets/js/component-loader.js"></script>
+<script>
+  let bannerList = [];
+  let categoryList = [];
+  let recommendList = [];
+  let currentBannerIndex = 0; // 追踪当前轮播图索引
+  let bannerInterval = null; // 存储定时器ID
 
-  <script>
-    let bannerList = [];
-    let categoryList = [];
+  // 轮播图自动切换间隔（毫秒）
+  const AUTOPLAY_INTERVAL = 4000;
 
-    // DOM加载完成后初始化
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('✅ DOM加载完成，开始初始化');
-      // 加载头部/底部组件
-      loadComponent('layout/header.html', '#header-container', initHeaderEvents);
-      loadComponent('layout/footer.html', '#footer-container');
+  // DOM加载完成后初始化
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM加载完成，开始初始化');
+    // 加载头部/底部组件
+    // 注意：loadComponent 是异步的，不能保证所有组件同时完成
+    loadComponent('layout/header.html', '#header-container', initHeaderEvents);
+    loadComponent('layout/footer.html', '#footer-container');
 
-      // 延迟执行，确保axios已挂载
-      setTimeout(() => {
-        console.log('✅ 开始加载轮播图和分类');
-        fetchBannerData();
-        fetchCategoryData();
-      }, 100);
+    // 延迟执行，确保axios已挂载
+    setTimeout(() => {
+      console.log('✅ 开始加载轮播图、分类和推荐商品');
+      fetchBannerData();
+      fetchCategoryData();
+      fetchRecommendData();
+    }, 100);
+
+    // 绑定重试按钮事件
+    document.getElementById('recommend-retry')?.addEventListener('click', fetchRecommendData);
+  });
+
+  /**
+   * 启动轮播图自动播放
+   */
+  function startAutoplay() {
+    if (bannerInterval) clearInterval(bannerInterval);
+    if (bannerList.length <= 1) return; // 只有一个或没有banner时，不开启自动播放
+
+    const bannerContainer = document.querySelector('#banner-container > div.flex');
+
+    // 监听滚动结束事件，用于手动滚动后同步指示器和重置定时器
+    let scrollTimer;
+    bannerContainer.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(bannerInterval); // 用户手动滚动时，停止自动播放
+
+      scrollTimer = setTimeout(() => {
+        // 计算当前显示的banner索引 (滚动位置 / banner宽度 + 0.5 四舍五入)
+        const newIndex = Math.round(bannerContainer.scrollLeft / bannerContainer.offsetWidth);
+        if (newIndex !== currentBannerIndex) {
+          updateIndicators(newIndex);
+          currentBannerIndex = newIndex;
+        }
+        startAutoplayTimer(); // 滚动结束后重新启动定时器
+      }, 150); // 滚动停止后150ms判断
     });
 
-    /**
-     * 轮播图加载 - 修复的关键点：从日志看接口返回的数据直接是data数组
-     */
-    function fetchBannerData() {
-      console.log('===== 轮播图接口请求开始 =====');
-      axios.get('/api/banner/list')
-        .then(res => {
-          console.log('接口返回完整数据：', res);
+    startAutoplayTimer();
+  }
 
-          // 关键修复：根据日志，接口返回的data字段直接是数组，不是res.data.data
-          console.log('接口返回data字段：', res.data);
-          console.log('接口返回data类型：', typeof res.data);
-          console.log('接口返回data是数组吗：', Array.isArray(res.data));
+  /**
+   * 启动定时器
+   */
+  function startAutoplayTimer() {
+    bannerInterval = setInterval(() => {
+      const nextIndex = (currentBannerIndex + 1) % bannerList.length;
+      switchBanner(nextIndex, true); // 自动播放模式
+    }, AUTOPLAY_INTERVAL);
+  }
 
-          if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-            bannerList = res.data; // 直接使用res.data，不是res.data.data
-            console.log('bannerList实际数据：', bannerList);
-            renderBanner();
-          } else if (res.data && res.data.code === 200 && Array.isArray(res.data.data) && res.data.data.length > 0) {
-            // 如果接口有包装结构，也支持
-            bannerList = res.data.data;
-            console.log('bannerList实际数据（包装结构）：', bannerList);
-            renderBanner();
-          } else {
-            console.log('进入默认图逻辑的原因：数据无效');
-            console.log('数据：', res.data);
-            renderDefaultBanner();
-          }
-        })
-        .catch(err => {
-          console.error('接口请求错误详情：', err);
-          renderDefaultBanner();
-        });
+
+  /**
+   * 轮播图加载
+   */
+  function fetchBannerData() {
+    console.log('===== 轮播图接口请求开始 =====');
+    axios.get('/api/banner/list')
+            .then(res => {
+              const data = res.data.data || res.data;
+
+              if (Array.isArray(data) && data.length > 0) {
+                bannerList = data;
+                renderBanner();
+                // 确保 DOM 渲染完成后才开始自动播放
+                setTimeout(startAutoplay, 50);
+              } else {
+                renderDefaultBanner();
+              }
+            })
+            .catch(err => {
+              console.error('接口请求错误详情：', err);
+              renderDefaultBanner();
+            });
+  }
+
+  /**
+   * 渲染轮播图 - 修复版本 (修复了图片路径)
+   */
+  function renderBanner() {
+    const container = document.getElementById('banner-container');
+
+    // 过滤掉没有有效图片的banner
+    const validBannerList = bannerList.filter(banner => banner.image_url || banner.imageUrl || banner.url || banner.image);
+    if (!validBannerList || validBannerList.length === 0) {
+      renderDefaultBanner();
+      return;
     }
 
-    /**
-     * 渲染轮播图 - 修复版本
-     */
-    function renderBanner() {
-      const container = document.getElementById('banner-container');
+    bannerList = validBannerList; // 更新为有效的banner列表
 
-      // 检查数据是否有效
-      if (!bannerList || bannerList.length === 0) {
-        console.error('❌ bannerList为空或无效，使用默认轮播图');
-        renderDefaultBanner();
-        return;
-      }
+    console.log('✅ 开始渲染轮播图，使用', bannerList.length, '个banner');
 
-      console.log('✅ 开始渲染轮播图，使用bannerList数据');
+    // 动态生成轮播图HTML
+    let bannerHTML = '<div class="flex h-64 md:h-96 overflow-x-auto scrollbar-hide snap-x snap-mandatory">';
 
-      // 动态生成轮播图HTML
-      let bannerHTML = '<div class="flex h-64 md:h-96 overflow-x-auto scrollbar-hide snap-x snap-mandatory">';
+    bannerList.forEach((banner, index) => {
+      const imageUrl = banner.image_url || banner.imageUrl || banner.url || banner.image || '';
 
-      bannerList.forEach((banner, index) => {
-        // 根据接口返回的数据结构，字段是image_url（下划线）
-        const imageUrl = banner.image_url || banner.imageUrl || banner.url || banner.image || '';
+      // 修复图片路径：假设静态文件路径为 /assets/
+      const fullImageUrl = imageUrl.startsWith('http')
+              ? imageUrl
+              : `/assets/image/banner/${imageUrl.split('/').pop()}`; // 修正为 /assets/image/banner/
 
-        // 确保有图片URL
-        if (!imageUrl) {
-          console.warn(`⚠️ 第${index + 1}个banner没有图片URL`, banner);
-          return;
-        }
+      // 默认图片路径也使用 /assets/
+      const errorFallbackUrl = '/assets/image/banner/banner-default.png';
 
-        // 生成图片HTML - 使用banner数据中的图片路径
-        const fullImageUrl = imageUrl.startsWith('http')
-          ? imageUrl
-          : `http://127.0.0.1:3000${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
-
-        bannerHTML += `
-          <div class="min-w-full h-full snap-start relative">
+      bannerHTML += `
+          <div class="min-w-full h-full snap-start relative" id="banner-${index}">
             <img
               src="${fullImageUrl}"
               class="w-full h-full object-cover"
               alt="${banner.title || `轮播图${index + 1}`}"
-              onerror="this.onerror=null;this.src='${window.location.origin}/assets/image/banner/banner-default.png'"
+              onerror="this.onerror=null;this.src='${errorFallbackUrl}'"
             />
             ${banner.title ? `
-              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
+              <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
                 <h3 class="text-lg font-bold">${banner.title}</h3>
               </div>
             ` : ''}
           </div>
         `;
-      });
+    });
 
-      bannerHTML += '</div>';
+    bannerHTML += '</div>';
 
-      // 添加指示器（如果有多个banner）
-      if (bannerList.length > 1) {
-        bannerHTML += `
-          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+    // 添加指示器（如果有多个banner）
+    if (bannerList.length > 1) {
+      bannerHTML += `
+          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2" id="banner-indicators">
             ${bannerList.map((_, index) => `
               <span
                 class="w-2 h-2 rounded-full cursor-pointer ${index === 0 ? 'bg-primary' : 'bg-white/50'}"
@@ -228,86 +254,104 @@
             `).join('')}
           </div>
         `;
-      }
-
-      container.innerHTML = bannerHTML;
-      console.log('✅ 轮播图渲染完成，使用了', bannerList.length, '个banner');
     }
 
-    /**
-     * 渲染默认轮播图
-     */
-    function renderDefaultBanner() {
-      const container = document.getElementById('banner-container');
-      if (container) {
-        const defaultImageUrl = `${window.location.origin}/assets/image/banner/banner-default.png`;
-        container.innerHTML = `
+    container.innerHTML = bannerHTML;
+    console.log('✅ 轮播图渲染完成，使用了', bannerList.length, '个banner');
+  }
+
+  /**
+   * 渲染默认轮播图
+   */
+  function renderDefaultBanner() {
+    const container = document.getElementById('banner-container');
+    if (container) {
+      // 使用基于根目录的绝对路径 /assets/
+      const defaultImageUrl = '/assets/image/banner/banner-default.png';
+      container.innerHTML = `
           <img
             src="${defaultImageUrl}"
             alt="默认轮播图"
             class="w-full h-64 md:h-96 object-cover banner-shadow"
           >
         `;
-        console.log('✅ 渲染默认轮播图完成，路径：', defaultImageUrl);
-      }
+      console.log('✅ 渲染默认轮播图完成，路径：', defaultImageUrl);
+    }
+  }
+
+  /**
+   * 切换轮播图 (手动点击指示器或自动播放调用)
+   */
+  function switchBanner(index, isAuto = false) {
+    const bannerContainer = document.querySelector('#banner-container > div.flex');
+    if (!bannerContainer || index < 0 || index >= bannerList.length) {
+      return;
     }
 
-    /**
-     * 切换轮播图
-     */
-    function switchBanner(index) {
-      const bannerContainer = document.querySelector('.flex.overflow-x-auto.scrollbar-hide');
-      if (!bannerContainer) {
-        console.warn('⚠️ 轮播图容器未找到，切换失败');
-        return;
-      }
-      // 计算滚动距离
-      const bannerWidth = bannerContainer.offsetWidth;
-      bannerContainer.scrollTo({
-        left: bannerWidth * index,
-        behavior: 'smooth'
-      });
-
-      // 更新指示器状态
-      const indicators = document.querySelectorAll('.absolute.bottom-4 span');
-      indicators.forEach((item, i) => {
-        item.classList.toggle('bg-primary', i === index);
-        item.classList.toggle('bg-white/50', i !== index);
-      });
+    // 如果是手动点击，停止自动播放，并重置定时器
+    if (!isAuto) {
+      if (bannerInterval) clearInterval(bannerInterval);
+      setTimeout(startAutoplayTimer, 500); // 稍微延迟后重启定时器
     }
 
-    /**
-     * 分类加载
-     */
-    function fetchCategoryData() {
-      console.log('===== 分类接口请求开始 =====');
-      axios.get('/api/category/list')
-        .then(res => {
-          console.log('✅ 分类接口返回：', res.data);
-          // 注意：分类接口返回的是数组，不是包装结构
-          if (Array.isArray(res.data) && res.data.length > 0) {
-            categoryList = res.data;
-            renderCategory();
-          } else {
-            renderDefaultCategory();
-          }
-        })
-        .catch(err => {
-          console.error('❌ 分类接口请求失败：', err);
-          renderDefaultCategory();
-        });
-    }
+    currentBannerIndex = index; // 更新当前索引
 
-    /**
-     * 渲染分类
-     */
-    function renderCategory() {
-      const container = document.getElementById('category-container');
-      if (!container) return;
-      container.innerHTML = '';
+    // 计算滚动距离
+    const bannerWidth = bannerContainer.offsetWidth;
+    bannerContainer.scrollTo({
+      left: bannerWidth * index,
+      behavior: 'smooth'
+    });
 
-      categoryList.forEach(cate => {
-        container.innerHTML += `
+    // 更新指示器状态
+    updateIndicators(index);
+  }
+
+  /**
+   * 更新指示器样式
+   */
+  function updateIndicators(activeIndex) {
+    const indicators = document.querySelectorAll('#banner-indicators span');
+    indicators.forEach((item, i) => {
+      item.classList.toggle('bg-primary', i === activeIndex);
+      item.classList.toggle('bg-white/50', i !== activeIndex);
+    });
+  }
+
+  // --- 其他函数 (fetchCategoryData, renderCategory, fetchRecommendData, renderRecommendProducts, initHeaderEvents) 保持原样 ---
+
+  /**
+   * 分类加载
+   */
+  function fetchCategoryData() {
+    console.log('===== 分类接口请求开始 =====');
+    axios.get('/api/category/list')
+            .then(res => {
+              console.log('✅ 分类接口返回：', res.data);
+              // 注意：分类接口返回的是数组，不是包装结构
+              if (Array.isArray(res.data) && res.data.length > 0) {
+                categoryList = res.data;
+                renderCategory();
+              } else {
+                renderDefaultCategory();
+              }
+            })
+            .catch(err => {
+              console.error('❌ 分类接口请求失败：', err);
+              renderDefaultCategory();
+            });
+  }
+
+  /**
+   * 渲染分类
+   */
+  function renderCategory() {
+    const container = document.getElementById('category-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    categoryList.forEach(cate => {
+      container.innerHTML += `
           <div class="category-card" onclick="jumpToCategoryList('${cate.id}')">
             <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
               <i class="fa ${cate.icon || 'fa-mobile'} text-2xl text-primary"></i>
@@ -315,28 +359,28 @@
             <h3 class="font-medium">${cate.name || '未知分类'}</h3>
           </div>
         `;
-      });
-    }
+    });
+  }
 
-    /**
-     * 渲染默认分类
-     */
-    function renderDefaultCategory() {
-      const container = document.getElementById('category-container');
-      if (!container) return;
-      container.innerHTML = '';
+  /**
+   * 渲染默认分类
+   */
+  function renderDefaultCategory() {
+    const container = document.getElementById('category-container');
+    if (!container) return;
+    container.innerHTML = '';
 
-      const defaultCates = [
-        { name: '手机数码', icon: 'fa-mobile' },
-        { name: '电脑办公', icon: 'fa-laptop' },
-        { name: '家用电器', icon: 'fa-tv' },
-        { name: '服装鞋帽', icon: 'fa-shopping-bag' },
-        { name: '美妆护肤', icon: 'fa-gift' },
-        { name: '食品生鲜', icon: 'fa-apple' }
-      ];
+    const defaultCates = [
+      { name: '手机数码', icon: 'fa-mobile' },
+      { name: '电脑办公', icon: 'fa-laptop' },
+      { name: '家用电器', icon: 'fa-tv' },
+      { name: '服装鞋帽', icon: 'fa-shopping-bag' },
+      { name: '美妆护肤', icon: 'fa-gift' },
+      { name: '食品生鲜', icon: 'fa-apple' }
+    ];
 
-      defaultCates.forEach(cate => {
-        container.innerHTML += `
+    defaultCates.forEach(cate => {
+      container.innerHTML += `
           <div class="category-card" onclick="jumpToCategoryList('')">
             <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
               <i class="fa ${cate.icon} text-2xl text-primary"></i>
@@ -344,26 +388,127 @@
             <h3 class="font-medium">${cate.name}</h3>
           </div>
         `;
+    });
+  }
+
+  /**
+   * 分类跳转 - 修正为基于根目录的绝对路径
+   */
+  function jumpToCategoryList(categoryId) {
+    // 修正：使用基于根目录的绝对路径
+    const url = `/pages/product/list.html${categoryId ? `?categoryId=${categoryId}` : ''}`;
+    window.location.href = url;
+  }
+
+  /**
+   * 推荐商品加载
+   */
+  function fetchRecommendData() {
+    console.log('===== 推荐商品接口请求开始 =====');
+    const loadingEl = document.getElementById('recommend-loading');
+    const errorEl = document.getElementById('recommend-error');
+    const productContainer = document.getElementById('recommend-product-container');
+    const moreBtnContainer = document.getElementById('recommend-more-btn-container');
+
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    if (errorEl) errorEl.classList.add('hidden');
+    if (productContainer) productContainer.classList.add('hidden');
+    if (moreBtnContainer) moreBtnContainer.classList.add('hidden');
+
+    axios.get('/api/product/recommend')
+            .then(res => {
+              const data = res.data.data || res.data;
+              if (Array.isArray(data) && data.length > 0) {
+                recommendList = data;
+                renderRecommendProducts();
+              } else {
+                if (loadingEl) loadingEl.classList.add('hidden');
+                console.log('⚠️ 推荐商品接口返回数据为空');
+                // 即使为空，也隐藏加载中，展示容器，但容器内为空
+                if (productContainer) {
+                  productContainer.innerHTML = '<p class="text-center text-gray-500 col-span-full">暂无推荐商品。</p>';
+                  productContainer.classList.remove('hidden');
+                }
+              }
+            })
+            .catch(err => {
+              console.error('❌ 推荐商品接口请求失败：', err);
+              if (loadingEl) loadingEl.classList.add('hidden');
+              if (errorEl) errorEl.classList.remove('hidden');
+              document.getElementById('recommend-error-msg').textContent = '商品加载失败，请稍后重试。';
+            });
+  }
+
+  /**
+   * 渲染推荐商品
+   */
+  function renderRecommendProducts() {
+    const loadingEl = document.getElementById('recommend-loading');
+    const productContainer = document.getElementById('recommend-product-container');
+    const moreBtnContainer = document.getElementById('recommend-more-btn-container');
+
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (!productContainer) return;
+
+    productContainer.innerHTML = ''; // 清空原有内容
+
+    recommendList.forEach(product => {
+      // 修复图片路径：假设推荐商品图片路径为 /assets/image/product/
+      const productImageUrl = product.image || '/assets/image/product/default.png'; // 假设图片字段是image
+      const defaultImageUrl = '/assets/image/product/default.png';
+
+
+      productContainer.innerHTML += `
+                <a href="/pages/product/detail.html?id=${product.id}" class="block bg-white rounded-lg overflow-hidden product-card-shadow">
+                    <img
+                        src="${productImageUrl}"
+                        alt="${product.name}"
+                        class="w-full h-48 object-cover"
+                        onerror="this.onerror=null;this.src='${defaultImageUrl}'"
+                    >
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-secondary truncate mb-1">${product.name}</h3>
+                        <p class="text-gray-500 text-sm mb-2">${product.description || '暂无描述'}</p>
+                        <div class="flex items-end justify-between">
+                            <span class="text-primary text-xl font-bold">¥${(product.price || 0).toFixed(2)}</span>
+                            <button class="bg-primary text-white text-sm px-3 py-1 rounded-full hover:bg-primary/90 transition-colors">
+                                立即购买
+                            </button>
+                        </div>
+                    </div>
+                </a>
+            `;
+    });
+
+    productContainer.classList.remove('hidden');
+    if (moreBtnContainer) moreBtnContainer.classList.remove('hidden');
+    console.log('✅ 推荐商品渲染完成，共', recommendList.length, '个');
+  }
+
+  /**
+   * 头部事件初始化
+   */
+  function initHeaderEvents() {
+    const menuBtn = document.querySelector('.fa-bars')?.parentElement;
+    if (menuBtn) {
+      menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
+    }
+
+    // 添加一个简单的搜索功能
+    const searchInput = document.querySelector('.flex.items-center.relative input[type="text"]');
+    if (searchInput) {
+      searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          const keyword = e.target.value.trim();
+          if (keyword) {
+            window.location.href = `/pages/product/list.html?keyword=${encodeURIComponent(keyword)}`;
+          } else {
+            alert('请输入搜索关键词');
+          }
+        }
       });
     }
-
-    /**
-     * 分类跳转
-     */
-    function jumpToCategoryList(categoryId) {
-      const url = `/pages/product/list.html${categoryId ? `?categoryId=${categoryId}` : ''}`;
-      window.location.href = url;
-    }
-
-    /**
-     * 头部事件初始化
-     */
-    function initHeaderEvents() {
-      const menuBtn = document.querySelector('.fa-bars')?.parentElement;
-      if (menuBtn) {
-        menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
-      }
-    }
-  </script>
+  }
+</script>
 </body>
 </html>

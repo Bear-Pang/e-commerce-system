@@ -95,6 +95,10 @@ def generate_token(user_id):
 
 def verify_token(token):
     try:
+        # 去掉 'Bearer ' 前缀
+        if token.startswith('Bearer '):
+            token = token.split(' ')[1]
+
         payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         return payload['user_id']
     except:
@@ -102,7 +106,12 @@ def verify_token(token):
 
 def login_required(f):
     def wrapper(*args, **kwargs):
-        token = request.headers.get('Authorization') or request.args.get('token')
+        # 优先从 Authorization header 获取
+        token = request.headers.get('Authorization')
+        # 其次从 query param 获取 (前端 axios 请求通常不会用)
+        if not token:
+            token = request.args.get('token')
+
         if not token:
             return jsonify({'code': 401, 'data': {}, 'msg': '请先登录'})
 
@@ -260,7 +269,7 @@ def get_product_detail():
     except Exception as e:
         return jsonify({'code': 500, 'data': {}, 'msg': f'失败：{str(e)}'})
 
-# 5.1 用户注册接口 (已更新：返回 Token 实现自动登录)
+# 5.1 用户注册接口
 @app.route('/api/user/register', methods=['POST'])
 def user_register():
     try:
@@ -344,6 +353,55 @@ def get_user_info():
             'msg': '获取成功'
         })
     except Exception as e:
+        return jsonify({'code': 500, 'data': {}, 'msg': f'失败：{str(e)}'})
+
+# 5.4 更新用户信息接口 (新增)
+@app.route('/api/user/update', methods=['POST'])
+@login_required # 必须登录才能修改
+def update_user_info():
+    try:
+        data = request.get_json()
+        new_password = data.get('password')
+        new_phone = data.get('phone')
+
+        user = User.query.get(g.user_id)
+        if not user:
+            return jsonify({'code': 404, 'data': {}, 'msg': '用户不存在'})
+
+        has_changed = False
+
+        # 1. 更新密码
+        if new_password:
+            if len(new_password) < 6:
+                return jsonify({'code': 400, 'data': {}, 'msg': '新密码至少6位'})
+            user.password = encrypt_password(new_password)
+            has_changed = True
+
+        # 2. 更新手机号
+        if new_phone is not None:
+            if new_phone and (not new_phone.isdigit() or len(new_phone) not in (10, 11)):
+                return jsonify({'code': 400, 'data': {}, 'msg': '手机号格式不正确'})
+            user.phone = new_phone
+            has_changed = True
+
+        if has_changed:
+            db.session.commit()
+
+            # 如果更新了密码，则返回新的 Token
+            if new_password:
+                new_token = generate_token(user.id)
+                return jsonify({
+                    'code': 200,
+                    'data': {'token': new_token},
+                    'msg': '信息修改成功，密码已更新，请重新登录或使用新Token'
+                })
+            else:
+                return jsonify({'code': 200, 'data': {}, 'msg': '信息修改成功'})
+        else:
+            return jsonify({'code': 200, 'data': {}, 'msg': '没有检测到信息更新'})
+
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'code': 500, 'data': {}, 'msg': f'失败：{str(e)}'})
 
 

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 优购商城</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.bootcdn.net/ajax/libs/axios/1.6.8/axios.min.js"></script>
+
+    <script>
+        // 配置 Tailwind 主题色
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#FF4400', secondary: '#333333' },
+                }
+            }
+        }
+    </script>
+    <link href="/assets/css/global.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 font-sans">
+<div id="app" class="min-h-screen flex flex-col">
+    <header id="header-container"></header>
+
+    <main class="flex-grow container mx-auto px-4 py-12">
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-8">
+            <h2 class="text-3xl font-bold mb-8 text-center text-secondary border-b pb-4">
+                <i class="fa fa-user-circle mr-2 text-primary"></i> 个人中心
+            </h2>
+
+            <div id="message-container" class="mb-4 py-3 px-4 border rounded-md hidden">
+                <p id="message-text" class="text-sm font-medium"></p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div class="border-r md:pr-10">
+                    <h3 class="text-xl font-semibold mb-6 text-primary border-b-2 border-primary inline-block pb-1">
+                        <i class="fa fa-info-circle mr-1"></i> 基础信息
+                    </h3>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <i class="fa fa-user text-gray-500 w-6"></i>
+                            <span class="font-semibold text-secondary mr-2">用户名:</span>
+                            <span id="profile-username" class="text-gray-700 font-mono text-lg">加载中...</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fa fa-phone text-gray-500 w-6"></i>
+                            <span class="font-semibold text-secondary mr-2">手机号:</span>
+                            <span id="profile-phone" class="text-gray-700 text-lg">加载中...</span>
+                            <button id="edit-phone-btn" class="ml-4 text-primary hover:text-primary/80 transition-colors text-sm">
+                                <i class="fa fa-pencil"></i> 修改
+                            </button>
+                        </div>
+
+                        <form id="phone-form" class="mt-4 p-4 border rounded-md bg-gray-50 hidden">
+                            <label class="block text-gray-700 mb-2" for="new-phone">
+                                <i class="fa fa-mobile mr-1"></i> 新手机号
+                            </label>
+                            <input type="text" id="new-phone" name="new-phone"
+                                   class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                   placeholder="请输入新手机号">
+                            <button type="submit" class="mt-3 bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 transition-colors text-sm">
+                                确认修改
+                            </button>
+                            <button type="button" id="cancel-phone-btn" class="mt-3 ml-2 bg-gray-400 text-white py-2 px-4 rounded-md hover:bg-gray-500 transition-colors text-sm">
+                                取消
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="md:pl-10">
+                    <h3 class="text-xl font-semibold mb-6 text-primary border-b-2 border-primary inline-block pb-1">
+                        <i class="fa fa-lock mr-1"></i> 密码修改
+                    </h3>
+
+                    <form id="password-form" class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2" for="new-password">
+                                <i class="fa fa-key mr-1"></i> 新密码
+                            </label>
+                            <input type="password" id="new-password" name="new-password"
+                                   class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                   required minlength="6" placeholder="至少6位">
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 mb-2" for="confirm-new-password">
+                                <i class="fa fa-check-square-o mr-1"></i> 确认新密码
+                            </label>
+                            <input type="password" id="confirm-new-password" name="confirm-new-password"
+                                   class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                   required>
+                        </div>
+
+                        <button type="submit" class="w-full bg-secondary text-white py-3 rounded-md hover:bg-secondary/90 transition-colors">
+                            更新密码
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="mt-10 pt-6 border-t text-center">
+                <button id="logout-btn" class="bg-red-500 text-white py-2 px-6 rounded-md hover:bg-red-600 transition-colors text-lg">
+                    <i class="fa fa-sign-out mr-2"></i> 退出登录
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer-container"></footer>
+</div>
+
+<script src="/assets/js/component-loader.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script src="/assets/js/profile.js"></script>
+
+<script>
+    // 在这里添加 profile.js 中的代码，确保 component-loader 加载的 header 也能调用 initHeaderEvents
+    document.addEventListener('DOMContentLoaded', function() {
+        // 加载头部/底部组件
+        loadComponent('layout/header.html', '#header-container', initHeaderEvents);
+        loadComponent('layout/footer.html', '#footer-container');
+    });
+
+    /**
+     * 头部事件初始化 (与 index.html 中的逻辑保持一致)
+     */
+    function initHeaderEvents() {
+        const menuBtn = document.querySelector('.fa-bars')?.parentElement;
+        if (menuBtn) {
+            menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
+        }
+
+        // 添加一个简单的搜索功能
+        const searchInput = document.querySelector('.flex.items-center.relative input[type="text"]');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const keyword = e.target.value.trim();
+                    if (keyword) {
+                        window.location.href = `/pages/product/list.html?keyword=${encodeURIComponent(keyword)}`;
+                    } else {
+                        alert('请输入搜索关键词');
+                    }
+                }
+            });
+        }
+    }
+
+    // 假设 /assets/js/profile.js 中包含个人中心页面的主要逻辑，如：
+    // fetchUserData(), handlePhoneUpdate(), handlePasswordUpdate(), handleLogout() 等。
+    // 如果 profile.js 依赖 DOM 加载完成，你需要确保它在 DOM 加载完成后被执行。
+    // 在实际开发中，如果 profile.js 依赖 component-loader.js，那么 script 标签的顺序是正确的。
+</script>
+</body>
+</html>
