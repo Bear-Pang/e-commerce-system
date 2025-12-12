@@ -11,7 +11,7 @@ import datetime
 # 警告：此代码依赖外部 product_data.py 文件提供 raw_products 列表
 from product_data import raw_products
 # ========================================================
-
+#
 # ===================== 全局配置 =====================
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
