@@ -28,188 +28,228 @@
   </style>
 </head>
 <body class="bg-gray-50 font-sans text-secondary">
-  <div id="app" class="min-h-screen flex flex-col">
-    <header id="header-container"></header>
+<div id="app" class="min-h-screen flex flex-col">
+  <header id="header-container"></header>
 
-    <main class="flex-grow container mx-auto px-4 py-8">
-      <!-- 加载中状态 -->
-      <div id="loading-container" class="bg-white rounded-lg p-8 text-center py-20">
-        <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
-        <p class="text-gray-600">正在加载商品列表...</p>
-      </div>
+  <main class="flex-grow container mx-auto px-4 py-8">
+    <div id="loading-container" class="bg-white rounded-lg p-8 text-center py-20">
+      <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+      <p class="text-gray-600">正在加载商品列表...</p>
+    </div>
 
-      <!-- 加载失败状态 -->
-      <div id="error-container" class="hidden bg-white rounded-lg p-8 text-center py-20">
-        <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
-        <p class="text-gray-600" id="error-message">商品列表加载失败</p>
-        <button id="retry-btn" class="btn-primary mt-4">重新加载</button>
-      </div>
+    <div id="error-container" class="hidden bg-white rounded-lg p-8 text-center py-20">
+      <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
+      <p class="text-gray-600" id="error-message">商品列表加载失败</p>
+      <button id="retry-btn" class="btn-primary mt-4">重新加载</button>
+    </div>
 
-      <!-- 动态渲染容器（原静态内容移到这里，用模板字符串生成） -->
-      <div id="list-container" class="hidden">
-        <div class="flex flex-col md:flex-row gap-6">
-          <!-- 左侧筛选栏（动态渲染分类） -->
-          <div class="w-full md:w-64 shrink-0">
-            <div id="category-filter" class="bg-white p-4 rounded-lg shadow-sm mb-6">
-              <h3 class="font-bold mb-4">商品分类</h3>
-              <!-- 动态渲染分类选项 -->
+    <div id="list-container" class="hidden">
+      <div class="flex flex-col md:flex-row gap-6">
+        <div class="w-full md:w-64 shrink-0">
+          <div id="category-filter" class="bg-white p-4 rounded-lg shadow-sm mb-6">
+            <h3 class="font-bold mb-4">商品分类</h3>
+          </div>
+        </div>
+
+        <div class="flex-1">
+          <div class="bg-white p-4 rounded-lg mb-6 shadow-sm">
+            <div class="flex flex-wrap gap-2" id="filter-tags">
             </div>
           </div>
 
-          <!-- 右侧商品列表 -->
-          <div class="flex-1">
-            <!-- 顶部筛选条件（动态渲染） -->
-            <div class="bg-white p-4 rounded-lg mb-6 shadow-sm">
-              <div class="flex flex-wrap gap-2" id="filter-tags">
-                <!-- 动态渲染筛选标签（如：全部商品、手机数码等） -->
-              </div>
-            </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-card-gap" id="product-list">
+          </div>
 
-            <!-- 商品列表（动态循环渲染） -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-card-gap" id="product-list">
-              <!-- 动态生成商品卡片 -->
-            </div>
-
-            <!-- 分页控件（动态渲染） -->
-            <div class="mt-8 text-center" id="pagination-container">
-              <!-- 动态生成页码 -->
-            </div>
+          <div class="mt-8 text-center" id="pagination-container">
           </div>
         </div>
       </div>
-    </main>
+    </div>
+  </main>
 
-    <footer id="footer-container"></footer>
-  </div>
+  <footer id="footer-container"></footer>
+</div>
 
-  <script src="/assets/js/component-loader.js"></script>
-  <script src="/assets/js/axios.js"></script>
-  <script>
-    // 全局变量：存储列表数据、分页信息、当前筛选条件
-    let productList = [];
-    let pagination = { page: 1, pageSize: 8, total: 0, totalPages: 0 };
-    let currentFilter = { categoryId: '', keyword: '' };
+<script src="/assets/js/component-loader.js"></script>
+<script src="/assets/js/axios.js"></script>
+<script>
+  // 全局变量：存储列表数据、分页信息、当前筛选条件
+  let productList = [];
+  // 默认分页大小改为 10，并修正参数名为 size
+  let pagination = { page: 1, size: 10, total: 0, totalPages: 0 };
+  let currentFilter = { categoryId: '', keyword: '' };
 
-    document.addEventListener('DOMContentLoaded', function() {
-      // 1. 加载公共组件（和之前一致，不改动）
-      loadComponent('layout/header.html', '#header-container', initHeaderEvents);
-      loadComponent('layout/footer.html', '#footer-container');
+  document.addEventListener('DOMContentLoaded', function() {
+    // 1. 从 URL 获取初始筛选参数（解决页面跳转携带的参数问题）
+    initFilterFromUrl();
 
-      // 2. 初始化：加载分类+商品列表
-      fetchCategoryData(); // 加载商品分类（用于筛选）
-      fetchProductList(); // 加载商品列表
+    // 2. 加载公共组件
+    loadComponent('layout/header.html', '#header-container', initHeaderEvents);
+    loadComponent('layout/footer.html', '#footer-container');
 
-      // 3. 绑定重新加载按钮事件
-      document.getElementById('retry-btn').addEventListener('click', fetchProductList);
-    });
+    // 3. 初始化：加载分类+商品列表
+    fetchCategoryData();
+    fetchProductList();
 
-    /**
-     * 从数据库获取商品分类（用于筛选栏）
-     */
-    function fetchCategoryData() {
-      axios.get('/api/category/list') // 后端分类接口
-        .then(res => {
-          if (res.data.code === 200 && res.data.data.length > 0) {
-            const categories = res.data.data;
-            renderCategoryFilter(categories); // 渲染左侧分类筛选
-            renderFilterTags(categories); // 渲染顶部筛选标签
-          }
-        })
-        .catch(err => console.error('分类加载失败：', err));
+    // 4. 绑定重新加载按钮事件
+    document.getElementById('retry-btn').addEventListener('click', fetchProductList);
+  });
+
+  /**
+   * 【新增函数】从URL中解析参数，初始化 currentFilter 和 pagination
+   */
+  function initFilterFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // 解析 category_id
+    const urlCategoryId = urlParams.get('category_id');
+    if (urlCategoryId) {
+      currentFilter.categoryId = parseInt(urlCategoryId, 10);
     }
 
-    /**
-     * 从数据库获取商品列表（支持分页、筛选）
-     */
-    function fetchProductList() {
-      showLoading();
-
-      // 接口参数：分页+筛选条件
-      const params = {
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        categoryId: currentFilter.categoryId,
-        keyword: currentFilter.keyword
-      };
-
-      axios.get('/api/product/list', { params }) // 后端商品列表接口
-        .then(res => {
-          if (res.data.code === 200) {
-            productList = res.data.data.list; // 商品列表数据
-            pagination = { ...pagination, ...res.data.data.pagination }; // 分页信息
-            renderProductList(); // 渲染商品列表
-            renderPagination(); // 渲染分页
-            showList(); // 显示列表，隐藏加载状态
-          } else {
-            showError(res.data.msg || '商品列表数据异常');
-          }
-        })
-        .catch(err => {
-          console.error('商品列表加载失败：', err);
-          showError('网络错误，请重试');
-        });
+    // 解析 keyword
+    const urlKeyword = urlParams.get('keyword');
+    if (urlKeyword) {
+      currentFilter.keyword = urlKeyword;
     }
 
-    /**
-     * 渲染左侧分类筛选栏
-     * @param {Array} categories - 分类数据（[{id: 1, name: '手机数码'}, ...]）
-     */
-    function renderCategoryFilter(categories) {
-      const container = document.getElementById('category-filter');
-      let categoryHtml = '<ul class="space-y-2">';
-      // 新增“全部分类”选项
-      categoryHtml += `<li><button class="w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${!currentFilter.categoryId ? 'text-primary font-medium' : ''}" onclick="changeFilter('categoryId', '')">全部分类</button></li>`;
-      // 循环渲染数据库中的分类
-      categories.forEach(cate => {
-        categoryHtml += `
+    // 解析 page
+    const urlPage = urlParams.get('page');
+    if (urlPage) {
+      pagination.page = parseInt(urlPage, 10);
+    }
+
+    // 解析 size
+    const urlSize = urlParams.get('size');
+    if (urlSize) {
+      pagination.size = parseInt(urlSize, 10);
+    }
+
+    // 注意：这里没有处理 'is_sale' 或 'is_recommend' 等非标准列表筛选参数
+  }
+
+
+  /**
+   * 从数据库获取商品分类（用于筛选栏）
+   */
+  function fetchCategoryData() {
+    axios.get('/api/category/list')
+            .then(res => {
+              if (res.data.code === 200 && res.data.data.length > 0) {
+                const categories = res.data.data;
+                renderCategoryFilter(categories);
+                renderFilterTags(categories);
+              }
+            })
+            .catch(err => console.error('分类加载失败：', err));
+  }
+
+  /**
+   * 从数据库获取商品列表（支持分页、筛选）
+   */
+  function fetchProductList() {
+    showLoading();
+
+    // 【修改点 1】：后端参数名是 size，前端改为 size
+    const params = {
+      page: pagination.page,
+      size: pagination.size, // 修正：将 pageSize 改为 size
+      category_id: currentFilter.categoryId, // 修正：将 categoryId 改为 category_id
+      keyword: currentFilter.keyword
+    };
+
+    axios.get('/api/product/list', { params })
+            .then(res => {
+              if (res.data.code === 200) {
+                productList = res.data.data.list; // 商品列表数据
+
+                // 【修改点 2】：修正分页信息的解析，直接使用后端返回的字段名
+                pagination.total = res.data.data.total;
+                pagination.totalPages = res.data.data.totalPages;
+                pagination.size = res.data.data.pageSize; // 确保 size 字段被更新
+
+                renderProductList();
+                renderPagination();
+                showList();
+              } else {
+                // 【修改点 3】：如果后端返回 200 但 code 非 200，显示后端消息
+                showError(res.data.msg || '商品列表数据异常');
+              }
+            })
+            .catch(err => {
+              console.error('商品列表加载失败：', err);
+              showError('网络错误，请检查后端服务是否运行或接口地址是否正确。');
+            });
+  }
+
+  /**
+   * 渲染左侧分类筛选栏
+   * @param {Array} categories - 分类数据
+   */
+  function renderCategoryFilter(categories) {
+    const container = document.getElementById('category-filter');
+    // 清空旧内容，避免重复添加
+    container.innerHTML = '<h3 class="font-bold mb-4">商品分类</h3>';
+
+    let categoryHtml = '<ul class="space-y-2">';
+    // 新增“全部分类”选项
+    categoryHtml += `<li><button class="w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${!currentFilter.categoryId ? 'text-primary font-medium' : ''}" onclick="changeFilter('categoryId', '')">全部分类</button></li>`;
+    // 循环渲染数据库中的分类
+    categories.forEach(cate => {
+      // 使用 === 比较数字 ID
+      const isActive = parseInt(currentFilter.categoryId) === cate.id;
+      categoryHtml += `
           <li>
-            <button class="w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${currentFilter.categoryId === cate.id ? 'text-primary font-medium' : ''}" onclick="changeFilter('categoryId', '${cate.id}')">
+            <button class="w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${isActive ? 'text-primary font-medium' : ''}" onclick="changeFilter('categoryId', ${cate.id})">
               ${cate.name}
             </button>
           </li>
         `;
-      });
-      categoryHtml += '</ul>';
-      container.innerHTML += categoryHtml;
-    }
+    });
+    categoryHtml += '</ul>';
+    container.innerHTML += categoryHtml;
+  }
 
-    /**
-     * 渲染顶部筛选标签
-     * @param {Array} categories - 分类数据
-     */
-    function renderFilterTags(categories) {
-      const container = document.getElementById('filter-tags');
-      // 全部商品标签
-      let tagHtml = `<button class="filter-item-active px-3 py-1 rounded-md text-sm" onclick="changeFilter('categoryId', '')">全部商品</button>`;
-      // 循环渲染分类标签
-      categories.forEach(cate => {
-        tagHtml += `
-          <button class="px-3 py-1 rounded-md text-sm hover:bg-gray-100 ${currentFilter.categoryId === cate.id ? 'bg-primary text-white' : ''}" onclick="changeFilter('categoryId', '${cate.id}')">
+  /**
+   * 渲染顶部筛选标签
+   * @param {Array} categories - 分类数据
+   */
+  function renderFilterTags(categories) {
+    const container = document.getElementById('filter-tags');
+    // 全部商品标签
+    const isAllActive = !currentFilter.categoryId;
+    let tagHtml = `<button class="px-3 py-1 rounded-md text-sm ${isAllActive ? 'filter-item-active' : 'hover:bg-gray-100'}" onclick="changeFilter('categoryId', '')">全部商品</button>`;
+
+    // 循环渲染分类标签
+    categories.forEach(cate => {
+      // 使用 === 比较数字 ID
+      const isActive = parseInt(currentFilter.categoryId) === cate.id;
+      tagHtml += `
+          <button class="px-3 py-1 rounded-md text-sm ${isActive ? 'filter-item-active' : 'hover:bg-gray-100'}" onclick="changeFilter('categoryId', ${cate.id})">
             ${cate.name}
           </button>
         `;
-      });
-      container.innerHTML = tagHtml;
+    });
+    container.innerHTML = tagHtml;
+  }
+
+  /**
+   * 渲染商品列表（循环生成商品卡片）
+   */
+  function renderProductList() {
+    const container = document.getElementById('product-list');
+    if (productList.length === 0) {
+      container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500">暂无商品数据</div>';
+      return;
     }
 
-    /**
-     * 渲染商品列表（循环生成商品卡片）
-     */
-    function renderProductList() {
-      const container = document.getElementById('product-list');
-      if (productList.length === 0) {
-        container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500">暂无商品数据</div>';
-        return;
-      }
-
-      let productHtml = '';
-      // 循环渲染数据库中的商品
-      productList.forEach(product => {
-        productHtml += `
+    let productHtml = '';
+    // 循环渲染数据库中的商品
+    productList.forEach(product => {
+      productHtml += `
           <div class="bg-white rounded-lg overflow-hidden product-card-shadow">
             <img
-              src="${product.mainImage || '/assets/image/error.jpg'}"
-              alt="${product.name || '商品图片'}"
+              src="${product.main_image || '/assets/image/error.jpg'}" alt="${product.name || '商品图片'}"
               class="w-full h-48 object-cover"
               onerror="this.src='/assets/image/error.jpg'"
             >
@@ -224,106 +264,138 @@
             </div>
           </div>
         `;
-      });
-      container.innerHTML = productHtml;
+    });
+    container.innerHTML = productHtml;
+  }
+
+  /**
+   * 渲染分页控件
+   */
+  function renderPagination() {
+    const container = document.getElementById('pagination-container');
+    const totalPages = pagination.totalPages;
+    const currentPage = pagination.page;
+
+    if (totalPages <= 1) {
+      container.innerHTML = '';
+      return;
     }
 
-    /**
-     * 渲染分页控件
-     */
-    function renderPagination() {
-      const container = document.getElementById('pagination-container');
-      let pageHtml = '<div class="flex justify-center gap-2">';
-      // 上一页
-      pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === 1 ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${pagination.page - 1})" ${pagination.page === 1 ? 'disabled' : ''}>上一页</button>`;
-      // 页码（简化版：只显示当前页、首页、尾页）
-      pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === 1 ? 'bg-primary text-white' : ''}" onclick="changePage(1)">1</button>`;
-      if (pagination.totalPages > 2) {
-        if (pagination.page > 3) pageHtml += '<span class="px-3 py-1">...</span>';
-        if (pagination.page > 2 && pagination.page < pagination.totalPages) {
-          pageHtml += `<button class="px-3 py-1 border rounded bg-primary text-white">${pagination.page}</button>`;
-        }
-        if (pagination.page < pagination.totalPages - 2) pageHtml += '<span class="px-3 py-1">...</span>';
-        pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === pagination.totalPages ? 'bg-primary text-white' : ''}" onclick="changePage(${pagination.totalPages})">${pagination.totalPages}</button>`;
-      } else if (pagination.totalPages === 2) {
-        pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === 2 ? 'bg-primary text-white' : ''}" onclick="changePage(2)">2</button>`;
-      }
-      // 下一页
-      pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${pagination.page + 1})" ${pagination.page === pagination.totalPages ? 'disabled' : ''}>下一页</button>`;
-      pageHtml += '</div>';
-      container.innerHTML = pageHtml;
+    let pageHtml = '<div class="flex justify-center gap-2">';
+
+    // 上一页
+    pageHtml += `<button class="px-3 py-1 border rounded ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+
+    // 页码渲染逻辑
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage + 1 < maxPagesToShow) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
     }
 
-    /**
-     * 切换筛选条件（分类、关键词等）
-     * @param {string} key - 筛选字段（categoryId/keyword）
-     * @param {string} value - 筛选值
-     */
-    function changeFilter(key, value) {
+    // 显示首页
+    if (startPage > 1) {
+      pageHtml += `<button class="px-3 py-1 border rounded" onclick="changePage(1)">1</button>`;
+      if (startPage > 2) pageHtml += '<span class="px-3 py-1">...</span>';
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pageHtml += `<button class="px-3 py-1 border rounded ${i === currentPage ? 'bg-primary text-white' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+
+    // 显示尾页
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) pageHtml += '<span class="px-3 py-1">...</span>';
+      pageHtml += `<button class="px-3 py-1 border rounded" onclick="changePage(${totalPages})">${totalPages}</button>`;
+    }
+
+    // 下一页
+    pageHtml += `<button class="px-3 py-1 border rounded ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+
+    pageHtml += '</div>';
+    container.innerHTML = pageHtml;
+  }
+
+  /**
+   * 切换筛选条件（分类、关键词等）
+   * @param {string} key - 筛选字段（categoryId/keyword）
+   * @param {string|number} value - 筛选值
+   */
+  function changeFilter(key, value) {
+    // 确保 categoryId 存为数字或空字符串
+    if (key === 'categoryId') {
+      currentFilter[key] = value === '' ? '' : parseInt(value, 10);
+    } else {
       currentFilter[key] = value;
-      pagination.page = 1; // 筛选条件变了，回到第1页
-      fetchProductList(); // 重新加载商品列表
     }
+    pagination.page = 1; // 筛选条件变了，回到第1页
+    fetchProductList(); // 重新加载商品列表
+  }
 
-    /**
-     * 切换页码
-     * @param {number} page - 目标页码
-     */
-    function changePage(page) {
-      if (page < 1 || page > pagination.totalPages) return;
-      pagination.page = page;
-      fetchProductList(); // 加载目标页商品
-    }
+  /**
+   * 切换页码
+   * @param {number} page - 目标页码
+   */
+  function changePage(page) {
+    if (page < 1 || page > pagination.totalPages) return;
+    pagination.page = page;
+    fetchProductList(); // 加载目标页商品
+  }
 
-    /**
-     * 生成星级评分（复用detail.html的逻辑，可抽成公共函数）
-     */
-    function generateStarRating(rating) {
-      const fullStar = Math.floor(rating);
-      const hasHalfStar = rating % 1 >= 0.5;
-      const emptyStar = 5 - fullStar - (hasHalfStar ? 1 : 0);
-      let starHtml = '';
-      for (let i = 0; i < fullStar; i++) starHtml += '<i class="fa fa-star"></i>';
-      if (hasHalfStar) starHtml += '<i class="fa fa-star-half-o"></i>';
-      for (let i = 0; i < emptyStar; i++) starHtml += '<i class="fa fa-star-o"></i>';
-      return starHtml;
-    }
+  /**
+   * 生成星级评分
+   */
+  function generateStarRating(rating) {
+    const fullStar = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStar = 5 - fullStar - (hasHalfStar ? 1 : 0);
+    let starHtml = '';
+    for (let i = 0; i < fullStar; i++) starHtml += '<i class="fa fa-star"></i>';
+    if (hasHalfStar) starHtml += '<i class="fa fa-star-half-o"></i>';
+    for (let i = 0; i < emptyStar; i++) starHtml += '<i class="fa fa-star-o"></i>';
+    return starHtml;
+  }
 
-    /**
-     * 显示加载中状态（复用detail的逻辑）
-     */
-    function showLoading() {
-      document.getElementById('loading-container').classList.remove('hidden');
-      document.getElementById('list-container').classList.add('hidden');
-      document.getElementById('error-container').classList.add('hidden');
-    }
+  /**
+   * 显示加载中状态
+   */
+  function showLoading() {
+    document.getElementById('loading-container').classList.remove('hidden');
+    document.getElementById('list-container').classList.add('hidden');
+    document.getElementById('error-container').classList.add('hidden');
+  }
 
-    /**
-     * 显示商品列表（隐藏加载状态）
-     */
-    function showList() {
-      document.getElementById('list-container').classList.remove('hidden');
-      document.getElementById('loading-container').classList.add('hidden');
-      document.getElementById('error-container').classList.add('hidden');
-    }
+  /**
+   * 显示商品列表
+   */
+  function showList() {
+    document.getElementById('list-container').classList.remove('hidden');
+    document.getElementById('loading-container').classList.add('hidden');
+    document.getElementById('error-container').classList.add('hidden');
+  }
 
-    /**
-     * 显示错误状态（复用detail的逻辑）
-     */
-    function showError(message) {
-      document.getElementById('error-container').classList.remove('hidden');
-      document.getElementById('error-message').textContent = message;
-      document.getElementById('loading-container').classList.add('hidden');
-      document.getElementById('list-container').classList.add('hidden');
-    }
+  /**
+   * 显示错误状态
+   */
+  function showError(message) {
+    document.getElementById('error-container').classList.remove('hidden');
+    document.getElementById('error-message').textContent = message;
+    document.getElementById('loading-container').classList.add('hidden');
+    document.getElementById('list-container').classList.add('hidden');
+  }
 
-    /**
-     * 头部菜单事件（和之前一致，不改动）
-     */
-    function initHeaderEvents() {
-      const menuBtn = document.querySelector('.fa-bars')?.parentElement;
-      menuBtn && menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
-    }
-  </script>
+  /**
+   * 头部菜单事件
+   */
+  function initHeaderEvents() {
+    // 确保这里包含您首页导航栏的逻辑，例如：
+    // 1. 获取搜索框的值，并在 changeFilter('keyword', value) 中调用
+    // 2. 确保“全部商品”按钮/链接调用 changeFilter('categoryId', '')
+    const menuBtn = document.querySelector('.fa-bars')?.parentElement;
+    menuBtn && menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
+  }
+</script>
 </body>
 </html>

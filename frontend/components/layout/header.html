@@ -1,43 +1,40 @@
-<div class="bg-white shadow-sm sticky top-0 z-50">
-  <div class="container mx-auto px-4">
-    <div class="flex items-center justify-between h-16">
-      <div class="flex items-center">
-        <a href="/public/index.html" class="flex items-center space-x-2">
-          <i class="fa fa-shopping-bag text-primary text-2xl"></i>
-          <span class="text-xl font-bold text-secondary">优购商城</span>
-        </a>
-      </div>
+<header id="main-header" class="bg-white shadow-md">
+  <div class="header-content container mx-auto px-4 py-3 flex justify-between items-center">
+    <div class="logo text-xl font-bold">
+      <a href="/public/index.html" class="text-primary flex items-center">
+        <i class="fa fa-shopping-bag mr-2"></i> 优购商城
+      </a>
+    </div>
 
-      <nav class="hidden md:flex items-center space-x-8">
-        <a href="/public/index.html" class="nav-item-hover font-medium">首页</a>
-        <a href="/pages/product/list.html" class="nav-item-hover font-medium">全部商品</a>
-        <a href="/pages/product/list.html?promotion=1" class="nav-item-hover font-medium text-primary">特惠活动</a>
-        <a href="/pages/about.html" class="nav-item-hover font-medium">关于我们</a>
-      </nav>
+    <nav id="main-nav" class="flex space-x-6 h-full">
+      <a href="/public/index.html" class="nav-item-hover text-secondary py-2">首页</a>
+      <a href="/pages/product/list.html" class="nav-item-hover text-secondary py-2">全部商品</a>
+      <a href="/pages/product/list.html?promotion=1" class="nav-item-hover text-secondary py-2">特惠活动</a>
+      <a href="/pages/about/about.html" class="nav-item-hover text-secondary py-2">关于我们</a>
+    </nav>
 
-      <div class="flex items-center space-x-4">
-        <div class="hidden md:flex items-center relative">
-          <input
-                  type="text"
-                  placeholder="搜索商品..."
-                  class="pl-10 pr-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:border-primary w-48 lg:w-64 transition-all"
-          >
-          <i class="fa fa-search absolute left-3 text-gray-400"></i>
-        </div>
+    <div class="search-box flex items-center border rounded-full px-3 py-1 bg-gray-100 hover:bg-white transition-colors">
+      <input type="text" id="search-input" placeholder="输入关键词搜索商品"
+             onkeydown="if(event.keyCode===13) searchProduct()"
+             class="bg-transparent outline-none text-sm w-40 md:w-64"
+      >
+      <button id="search-button" onclick="searchProduct()" class="text-gray-500 hover:text-primary ml-2">
+        <i class="fa fa-search"></i>
+      </button>
+    </div>
 
-        <a href="/pages/cart/cart.html" class="relative p-2 hover:text-primary transition-colors">
-          <i class="fa fa-shopping-cart text-xl"></i>
-          <span class="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">0</span>
-        </a>
-
-        <a href="/pages/user/profile.html" class="p-2 hover:text-primary transition-colors">
-          <i class="fa fa-user text-xl"></i>
-        </a>
-
-        <button class="md:hidden p-2 hover:text-primary transition-colors">
-          <i class="fa fa-bars text-xl"></i>
-        </button>
-      </div>
+    <div class="user-area flex items-center space-x-4 text-sm">
+      <a href="/pages/cart/cart.html" class="cart-icon text-secondary hover:text-primary flex items-center">
+        <i class="fa fa-shopping-cart mr-1"></i> 购物车
+      </a>
+      <span class="text-gray-300">|</span>
+      <a href="/pages/user/profile.html" id="user-profile-link" class="text-secondary hover:text-primary flex items-center">
+        <i class="fa fa-user mr-1"></i> 个人中心
+      </a>
     </div>
   </div>
-</div>
+</header>
+
+<script>
+  // 注意：searchProduct 和 highlightCurrentNav 函数在 utils.js 中定义
+</script>

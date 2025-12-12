@@ -1,6 +1,6 @@
 /**
  * =========================================
- * /assets/js/utils.js - 通用工具函数库
+ * /assets/js/utils.js - 通用工具函数库 (最终修复版本)
  * =========================================
  */
 
@@ -51,7 +51,8 @@ function removeToken() {
  */
 function getAuthHeaders() {
     const token = getToken();
-    return token ? { 'Authorization': token } : {};
+    // 假设后端需要 "Bearer token_string" 格式
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
 
@@ -90,9 +91,7 @@ function formatPrice(price) {
 }
 
 
-// 导出工具函数，使其可以在其他脚本中调用 (例如 profile.js)
-// 假设这是通过全局变量实现的，因为您的项目中直接使用了函数名
-// 如果项目使用模块化 (import/export)，则需要修改导出方式
+// 导出工具函数，使其可以在其他脚本中调用
 window.utils = {
     API_BASE_URL,
     getApiUrl,
@@ -105,12 +104,65 @@ window.utils = {
     formatPrice
 };
 
-// 或者直接将函数挂载到 window 对象 (在非模块化老项目中常见)
-// window.getApiUrl = getApiUrl;
-// window.getToken = getToken;
-// window.setToken = setToken;
-// window.removeToken = removeToken;
-// window.getAuthHeaders = getAuthHeaders;
-// window.isValidPhone = isValidPhone;
-// window.isValidPassword = isValidPassword;
-// window.formatPrice = formatPrice;
+
+// =========================================
+// 新增/修复：导航栏和搜索相关的前端交互逻辑
+// =========================================
+
+/**
+ * 导航栏动态高亮逻辑：根据当前 URL 设置导航栏 active 状态
+ * 【修复】：修正了 URL 匹配逻辑，确保带参数的页面也能正确高亮。
+ */
+function highlightCurrentNav() {
+    // 获取当前完整的 URL (包含 pathname 和 search)
+    const currentFullUrl = window.location.pathname + window.location.search;
+    // 获取当前页面路径名 (e.g., /pages/product/list.html)
+    const currentPathname = window.location.pathname;
+
+    const navLinks = document.querySelectorAll('#main-nav a');
+
+    navLinks.forEach(link => {
+        link.classList.remove('active'); // 1. 移除所有 active 类
+
+        const linkHref = link.getAttribute('href');
+
+        // 1. 匹配 "特惠活动" (精确匹配 full URL 中的 promotion=1)
+        if (linkHref.includes('promotion=1') && currentFullUrl.includes('promotion=1')) {
+            link.classList.add('active');
+        }
+            // 2. 匹配 "全部商品" (匹配 list.html 页面，但排除特惠活动)
+        // 如果当前路径是 list.html 并且 URL 中不包含 promotion=1，则高亮
+        else if (linkHref.endsWith('list.html') &&
+            currentPathname.endsWith('list.html') &&
+            !currentFullUrl.includes('promotion=1')) {
+            link.classList.add('active');
+        }
+        // 3. 匹配 "关于我们" (匹配 detail.html 页面，假设这是唯一的 detail.html 页面)
+        else if (linkHref.endsWith('detail.html') &&
+            currentPathname.endsWith('detail.html')) {
+            link.classList.add('active');
+        }
+        // 4. 匹配 "首页" (匹配 index.html，包括根路径 /)
+        else if (linkHref.includes('index.html') &&
+            (currentPathname.endsWith('index.html') || currentPathname === '/')) {
+            link.classList.add('active');
+        }
+    });
+}
+
+/**
+ * 商品搜索逻辑：根据搜索框内容跳转到商品列表页
+ */
+function searchProduct() {
+    const keyword = document.getElementById('search-input').value;
+    if (keyword) {
+        window.location.href = `/pages/product/list.html?keyword=${encodeURIComponent(keyword)}`;
+    }
+}
+
+// 确保在 DOM 加载完成后调用 highlightCurrentNav 函数
+document.addEventListener('DOMContentLoaded', highlightCurrentNav);
+
+// 将新的全局函数挂载到 window 对象，确保 header.html 中的 onclick 可以调用
+window.highlightCurrentNav = highlightCurrentNav;
+window.searchProduct = searchProduct;

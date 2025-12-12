@@ -28,8 +28,16 @@
   <style type="text/tailwindcss">
     @layer utilities {
       .nav-item-hover {
+        /* 保留您原有的 hover 效果定义 */
         @apply relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-primary after:transition-all hover:after:w-full;
       }
+
+      /* 【修复点】：重新定义 #main-nav a.active 样式，确保它使用 Tailwind 类并只添加高亮 */
+      #main-nav a.active {
+        /* 使用 primary 颜色、加粗、并添加底部线条 */
+        @apply text-primary font-bold border-b-2 border-primary;
+      }
+
       .btn-primary {
         @apply bg-primary text-white px-4 py-2 rounded-md transition-all hover:bg-primary/90 active:scale-95;
       }
@@ -92,12 +100,14 @@
         </a>
       </div>
     </div>
+
   </main>
 
   <footer id="footer-container"></footer>
 </div>
 
 <script src="/assets/js/component-loader.js"></script>
+<script src="/assets/js/utils.js"></script>
 <script>
   let bannerList = [];
   let categoryList = [];
@@ -116,12 +126,19 @@
     loadComponent('layout/header.html', '#header-container', initHeaderEvents);
     loadComponent('layout/footer.html', '#footer-container');
 
+    // 【移除加载：common/about.html 的调用已移除】
+
     // 延迟执行，确保axios已挂载
     setTimeout(() => {
       console.log('✅ 开始加载轮播图、分类和推荐商品');
       fetchBannerData();
       fetchCategoryData();
       fetchRecommendData();
+
+      // 确保高亮逻辑被调用
+      if (typeof highlightCurrentNav === 'function') {
+        highlightCurrentNav();
+      }
     }, 100);
 
     // 绑定重试按钮事件
@@ -136,6 +153,7 @@
     if (bannerList.length <= 1) return; // 只有一个或没有banner时，不开启自动播放
 
     const bannerContainer = document.querySelector('#banner-container > div.flex');
+    if (!bannerContainer) return; // 防止找不到元素
 
     // 监听滚动结束事件，用于手动滚动后同步指示器和重置定时器
     let scrollTimer;
@@ -291,7 +309,7 @@
     // 如果是手动点击，停止自动播放，并重置定时器
     if (!isAuto) {
       if (bannerInterval) clearInterval(bannerInterval);
-      setTimeout(startAutoplayTimer, 500); // 稍微延迟后重启定时器
+      startAutoplayTimer(); // 手动切换后重置定时器，从头开始计时
     }
 
     currentBannerIndex = index; // 更新当前索引
@@ -318,8 +336,6 @@
     });
   }
 
-  // --- 其他函数 (fetchCategoryData, renderCategory, fetchRecommendData, renderRecommendProducts, initHeaderEvents) 保持原样 ---
-
   /**
    * 分类加载
    */
@@ -327,10 +343,10 @@
     console.log('===== 分类接口请求开始 =====');
     axios.get('/api/category/list')
             .then(res => {
-              console.log('✅ 分类接口返回：', res.data);
-              // 注意：分类接口返回的是数组，不是包装结构
-              if (Array.isArray(res.data) && res.data.length > 0) {
-                categoryList = res.data;
+              // 注意：分类接口返回的是包装结构，需要读取 res.data.data
+              const data = res.data.data;
+              if (res.data.code === 200 && Array.isArray(data) && data.length > 0) {
+                categoryList = data;
                 renderCategory();
               } else {
                 renderDefaultCategory();
@@ -392,11 +408,10 @@
   }
 
   /**
-   * 分类跳转 - 修正为基于根目录的绝对路径
+   * 分类跳转 - 修正参数名
    */
   function jumpToCategoryList(categoryId) {
-    // 修正：使用基于根目录的绝对路径
-    const url = `/pages/product/list.html${categoryId ? `?categoryId=${categoryId}` : ''}`;
+    const url = `/pages/product/list.html${categoryId ? `?category_id=${categoryId}` : ''}`;
     window.location.href = url;
   }
 
@@ -404,7 +419,7 @@
    * 推荐商品加载
    */
   function fetchRecommendData() {
-    console.log('===== 推荐商品接口请求开始 =====');
+    console.log('===== 推荐商品接口请求开始 (修正为 /api/product/list?is_recommend=1&size=5) =====');
     const loadingEl = document.getElementById('recommend-loading');
     const errorEl = document.getElementById('recommend-error');
     const productContainer = document.getElementById('recommend-product-container');
@@ -415,29 +430,37 @@
     if (productContainer) productContainer.classList.add('hidden');
     if (moreBtnContainer) moreBtnContainer.classList.add('hidden');
 
-    axios.get('/api/product/recommend')
+    axios.get('/api/product/list?is_recommend=1&size=5')
             .then(res => {
-              const data = res.data.data || res.data;
-              if (Array.isArray(data) && data.length > 0) {
-                recommendList = data;
-                renderRecommendProducts();
+              if (res.data.code === 200) {
+                // 解析分页结构中的 list 字段
+                const data = res.data.data.list;
+
+                if (Array.isArray(data) && data.length > 0) {
+                  recommendList = data;
+                  renderRecommendProducts();
+                } else {
+                  if (loadingEl) loadingEl.classList.add('hidden');
+                  console.log('⚠️ 推荐商品接口返回数据为空');
+                  if (productContainer) {
+                    productContainer.innerHTML = '<p class="text-center text-gray-500 col-span-full">暂无推荐商品。</p>';
+                    productContainer.classList.remove('hidden');
+                  }
+                }
               } else {
                 if (loadingEl) loadingEl.classList.add('hidden');
-                console.log('⚠️ 推荐商品接口返回数据为空');
-                // 即使为空，也隐藏加载中，展示容器，但容器内为空
-                if (productContainer) {
-                  productContainer.innerHTML = '<p class="text-center text-gray-500 col-span-full">暂无推荐商品。</p>';
-                  productContainer.classList.remove('hidden');
-                }
+                if (errorEl) errorEl.classList.remove('hidden');
+                document.getElementById('recommend-error-msg').textContent = res.data.msg || '推荐商品数据异常。';
               }
             })
             .catch(err => {
               console.error('❌ 推荐商品接口请求失败：', err);
               if (loadingEl) loadingEl.classList.add('hidden');
               if (errorEl) errorEl.classList.remove('hidden');
-              document.getElementById('recommend-error-msg').textContent = '商品加载失败，请稍后重试。';
+              document.getElementById('recommend-error-msg').textContent = '商品加载失败，请检查网络或后端服务。';
             });
   }
+
 
   /**
    * 渲染推荐商品
@@ -453,8 +476,8 @@
     productContainer.innerHTML = ''; // 清空原有内容
 
     recommendList.forEach(product => {
-      // 修复图片路径：假设推荐商品图片路径为 /assets/image/product/
-      const productImageUrl = product.image || '/assets/image/product/default.png'; // 假设图片字段是image
+      // 修复图片路径：假设推荐商品图片路径为 /assets/image/product/ 或直接使用 main_image
+      const productImageUrl = product.main_image || product.image || '/assets/image/product/default.png'; // 假设图片字段是 image 或 main_image
       const defaultImageUrl = '/assets/image/product/default.png';
 
 
@@ -494,19 +517,19 @@
       menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
     }
 
-    // 添加一个简单的搜索功能
-    const searchInput = document.querySelector('.flex.items-center.relative input[type="text"]');
-    if (searchInput) {
+    // 搜索输入框事件绑定
+    const searchInput = document.querySelector('#header-container #search-input');
+    if (searchInput && typeof searchProduct === 'function') {
       searchInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-          const keyword = e.target.value.trim();
-          if (keyword) {
-            window.location.href = `/pages/product/list.html?keyword=${encodeURIComponent(keyword)}`;
-          } else {
-            alert('请输入搜索关键词');
-          }
+          searchProduct(); // 调用 utils.js 中定义的搜索函数
         }
       });
+    }
+
+    // 确保导航栏高亮逻辑在 header 组件加载完成后被执行
+    if (typeof highlightCurrentNav === 'function') {
+      highlightCurrentNav();
     }
   }
 </script>
