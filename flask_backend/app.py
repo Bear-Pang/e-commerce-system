@@ -7,6 +7,11 @@ import bcrypt
 import jwt
 import datetime
 
+# ===================== 导入外部数据源 =====================
+# 警告：此代码依赖外部 product_data.py 文件提供 raw_products 列表
+from product_data import raw_products
+# ========================================================
+
 # ===================== 全局配置 =====================
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
@@ -18,6 +23,7 @@ app.config['SECRET_KEY'] = 'yougou_2025_secret_key'
 app.config['JWT_EXPIRY_HOURS'] = 24
 db = SQLAlchemy(app)
 
+# 根据您提供的原始代码路径结构进行设置
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 FRONTEND_ROOT = os.path.join(PROJECT_ROOT, 'frontend')
 
@@ -42,10 +48,10 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(200), nullable=False)
     price = db.Column(db.Float, default=0.0)
-    main_image = db.Column(db.String(255), default='/assets/image/product1.png')
+    main_image = db.Column(db.String(255), default='/assets/image/product1.png') # 对应 raw_products 中的 'image'
     category_id = db.Column(db.Integer, default=1)
     stock = db.Column(db.Integer, default=100)
-    is_recommend = db.Column(db.Integer, default=1)
+    is_recommend = db.Column(db.Integer, default=1) # 1: 推荐, 0: 不推荐
     is_sale = db.Column(db.Integer, default=1)
 
 class User(db.Model):
@@ -96,8 +102,11 @@ def generate_token(user_id):
 def verify_token(token):
     try:
         # 去掉 'Bearer ' 前缀
-        if token.startswith('Bearer '):
+        if token and token.startswith('Bearer '):
             token = token.split(' ')[1]
+
+        if not token:
+            return None
 
         payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         return payload['user_id']
@@ -169,6 +178,7 @@ def serve_frontend(path=''):
     if file_path and os.path.exists(file_path):
         return send_file(file_path)
     else:
+        # 404 错误页
         return f"""
         <h1>404 页面未找到</h1>
         <p>请求路径：{path}</p>
@@ -208,21 +218,46 @@ def get_categories():
     except Exception as e:
         return jsonify({'code': 500, 'data': [], 'msg': f'失败：{str(e)}'})
 
-# 3. 商品列表接口
+# 3. 商品列表接口 (已修复和增强)
 @app.route('/api/product/list', methods=['GET'])
 def get_product_list():
     try:
+        # 获取筛选参数
         category_id = request.args.get('category_id', 0, type=int)
         keyword = request.args.get('keyword', type=str)
+        is_recommend_param = request.args.get('is_recommend', type=int) # 用于首页热门推荐
+        promotion_param = request.args.get('promotion', 0, type=int) # 用于特惠活动/秒杀
+
+        # 默认分页参数，热门推荐使用 5 条，全部商品列表使用 10 条
+        default_size = 5 if is_recommend_param == 1 else 10
         page = request.args.get('page', 1, type=int)
-        size = request.args.get('size', 10, type=int)
+        # 前端 list.html 传递的参数名可能是 pageSize 或 size
+        size = request.args.get('size', default_size, type=int)
 
         query = Product.query.filter_by(is_sale=1)
-        if category_id > 0:
-            query = query.filter_by(category_id=category_id)
 
-        if keyword:
-            query = query.filter(or_(Product.name.like(f'%{keyword}%')))
+        # 1. 热门推荐筛选 (用于首页)
+        if is_recommend_param == 1:
+            query = query.filter_by(is_recommend=1)
+            # 热门推荐强制 size=5 (如果前端没有传size)
+            if 'size' not in request.args:
+                size = 5
+
+        # 2. 特惠活动筛选 (用于导航栏跳转)
+        elif promotion_param == 1:
+            # 假设所有 promotion=1 的商品就是 is_recommend=1 的商品
+            query = query.filter_by(is_recommend=1)
+
+            # 3. 普通筛选 (分类和关键词搜索)
+        else:
+            if category_id > 0:
+                query = query.filter_by(category_id=category_id)
+
+            if keyword:
+                query = query.filter(or_(Product.name.like(f'%{keyword}%')))
+
+        # 排序
+        query = query.order_by(Product.id.desc())
 
         pagination = get_pagination_data(query, page, size)
 
@@ -246,6 +281,7 @@ def get_product_list():
             'msg': '成功'
         })
     except Exception as e:
+        # 返回 500 错误，前端将显示加载失败
         return jsonify({'code': 500, 'data': {}, 'msg': f'失败：{str(e)}'})
 
 # 4. 商品详情接口
@@ -280,13 +316,9 @@ def user_register():
         if not username or not password:
             return jsonify({'code': 400, 'data': {}, 'msg': '用户名或密码不能为空'})
 
-        if len(username) < 4 or len(password) < 6:
-            return jsonify({'code': 400, 'data': {}, 'msg': '用户名至少4位，密码至少6位'})
-
         if User.query.filter_by(username=username).first():
             return jsonify({'code': 409, 'data': {}, 'msg': '用户名已存在'})
 
-        # 1. 创建新用户
         new_user = User(
             username=username,
             password=encrypt_password(password),
@@ -294,11 +326,7 @@ def user_register():
         )
         db.session.add(new_user)
         db.session.commit()
-
-        # 2. 立即生成 Token (实现自动登录)
-        token = generate_token(new_user.id) # 调用工具函数生成 Token
-
-        # 3. 注册成功后，返回 Token
+        token = generate_token(new_user.id)
         return jsonify({
             'code': 200,
             'data': {'username': username, 'token': token},
@@ -355,9 +383,10 @@ def get_user_info():
     except Exception as e:
         return jsonify({'code': 500, 'data': {}, 'msg': f'失败：{str(e)}'})
 
-# 5.4 更新用户信息接口 (新增)
+
+# 5.4 更新用户信息接口
 @app.route('/api/user/update', methods=['POST'])
-@login_required # 必须登录才能修改
+@login_required
 def update_user_info():
     try:
         data = request.get_json()
@@ -370,14 +399,12 @@ def update_user_info():
 
         has_changed = False
 
-        # 1. 更新密码
         if new_password:
             if len(new_password) < 6:
                 return jsonify({'code': 400, 'data': {}, 'msg': '新密码至少6位'})
             user.password = encrypt_password(new_password)
             has_changed = True
 
-        # 2. 更新手机号
         if new_phone is not None:
             if new_phone and (not new_phone.isdigit() or len(new_phone) not in (10, 11)):
                 return jsonify({'code': 400, 'data': {}, 'msg': '手机号格式不正确'})
@@ -386,8 +413,6 @@ def update_user_info():
 
         if has_changed:
             db.session.commit()
-
-            # 如果更新了密码，则返回新的 Token
             if new_password:
                 new_token = generate_token(user.id)
                 return jsonify({
@@ -646,20 +671,19 @@ if __name__ == '__main__':
             db.session.add_all(categories)
 
         if not Product.query.first():
-            products = [
-                Product(name='iPhone 15 Pro', price=5999.0, main_image='/assets/image/product/iphone15.png', category_id=1, stock=50, is_recommend=1),
-                Product(name='华为Mate60 Pro', price=6999.0, main_image='/assets/image/product/huawei_mate60.png', category_id=1, stock=30, is_recommend=1),
-                Product(name='小米14 Ultra', price=4999.0, main_image='/assets/image/product/mi14.png', category_id=1, stock=80, is_recommend=1),
-                Product(name='vivo X100 Pro', price=4599.0, main_image='/assets/image/product/vivo_x100.png', category_id=1, stock=60, is_recommend=0),
-                Product(name='MacBook Pro 2025', price=9999.0, main_image='/assets/image/product/macbook.png', category_id=2, stock=20, is_recommend=1),
-                Product(name='联想拯救者Y9000P', price=8999.0, main_image='/assets/image/product/lenovo_y9000p.png', category_id=2, stock=15, is_recommend=1),
-                Product(name='戴尔XPS 13', price=7999.0, main_image='/assets/image/product/dell_xps.png', category_id=2, stock=25, is_recommend=0),
-                Product(name='iPad Pro 2025', price=7999.0, main_image='/assets/image/product/ipad_pro.png', category_id=3, stock=18, is_recommend=1),
-                Product(name='华为MatePad Pro', price=4299.0, main_image='/assets/image/product/huawei_pad.png', category_id=3, stock=40, is_recommend=0),
-                Product(name='AirPods Pro 2', price=1999.0, main_image='/assets/image/product/airpods.png', category_id=4, stock=100, is_recommend=1),
-                Product(name='苹果原装充电器', price=299.0, main_image='/assets/image/product/charger.png', category_id=4, stock=200, is_recommend=0)
-            ]
-            db.session.add_all(products)
+            products_to_add = []
+            for i, raw_p in enumerate(raw_products):
+                p_data = raw_p.copy()
+                p_data['main_image'] = p_data.pop('image')
+                # 默认前 5 个商品设置为热门推荐
+                if i < 5:
+                    p_data['is_recommend'] = 1
+                else:
+                    p_data['is_recommend'] = 0
+
+                products_to_add.append(Product(**p_data))
+
+            db.session.add_all(products_to_add)
 
         if not User.query.first():
             users = [
