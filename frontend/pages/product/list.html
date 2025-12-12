@@ -6,15 +6,13 @@
   <title>商品列表 - 优购商城</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/global.css">
-  <link rel="stylesheet" href="/assets/css/pages/product-list.css">
 
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: { primary: '#FF4400', secondary: '#333333' },
-          spacing: { 'card-gap': '1.5rem' },
+          // 我们直接使用 tailwind 原生 gap-6，不再依赖 gap-card-gap
         },
       }
     }
@@ -23,307 +21,319 @@
   <style type="text/tailwindcss">
     @layer utilities {
       .filter-item-active { @apply bg-primary text-white; }
-      .product-card-shadow { @apply shadow-md hover:shadow-lg transition-shadow; }
+      /* 增强卡片悬停效果，与主页一致 */
+      .product-card-shadow { @apply shadow-md hover:shadow-lg transition-all duration-300; }
     }
   </style>
 </head>
 <body class="bg-gray-50 font-sans text-secondary">
-  <div id="app" class="min-h-screen flex flex-col">
-    <header id="header-container"></header>
+<div id="app" class="min-h-screen flex flex-col">
+  <header id="header-container"></header>
 
-    <main class="flex-grow container mx-auto px-4 py-8">
-      <!-- 加载中状态 -->
-      <div id="loading-container" class="bg-white rounded-lg p-8 text-center py-20">
-        <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
-        <p class="text-gray-600">正在加载商品列表...</p>
-      </div>
+  <main class="flex-grow container mx-auto px-4 py-8">
+    <div id="loading-container" class="bg-white rounded-lg p-8 text-center py-20">
+      <i class="fa fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+      <p class="text-gray-600">正在加载商品列表...</p>
+    </div>
 
-      <!-- 加载失败状态 -->
-      <div id="error-container" class="hidden bg-white rounded-lg p-8 text-center py-20">
-        <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
-        <p class="text-gray-600" id="error-message">商品列表加载失败</p>
-        <button id="retry-btn" class="btn-primary mt-4">重新加载</button>
-      </div>
+    <div id="error-container" class="hidden bg-white rounded-lg p-8 text-center py-20">
+      <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
+      <p class="text-gray-600" id="error-message">商品列表加载失败</p>
+      <button id="retry-btn" class="btn-primary mt-4">重新加载</button>
+    </div>
 
-      <!-- 动态渲染容器（原静态内容移到这里，用模板字符串生成） -->
-      <div id="list-container" class="hidden">
-        <div class="flex flex-col md:flex-row gap-6">
-          <!-- 左侧筛选栏（动态渲染分类） -->
-          <div class="w-full md:w-64 shrink-0">
-            <div id="category-filter" class="bg-white p-4 rounded-lg shadow-sm mb-6">
-              <h3 class="font-bold mb-4">商品分类</h3>
-              <!-- 动态渲染分类选项 -->
-            </div>
-          </div>
-
-          <!-- 右侧商品列表 -->
-          <div class="flex-1">
-            <!-- 顶部筛选条件（动态渲染） -->
-            <div class="bg-white p-4 rounded-lg mb-6 shadow-sm">
-              <div class="flex flex-wrap gap-2" id="filter-tags">
-                <!-- 动态渲染筛选标签（如：全部商品、手机数码等） -->
-              </div>
-            </div>
-
-            <!-- 商品列表（动态循环渲染） -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-card-gap" id="product-list">
-              <!-- 动态生成商品卡片 -->
-            </div>
-
-            <!-- 分页控件（动态渲染） -->
-            <div class="mt-8 text-center" id="pagination-container">
-              <!-- 动态生成页码 -->
-            </div>
+    <div id="list-container" class="hidden">
+      <div class="flex flex-col md:flex-row gap-6">
+        <div class="w-full md:w-64 shrink-0">
+          <div id="category-filter" class="bg-white p-4 rounded-lg shadow-sm mb-6 sticky top-4">
+            <h3 class="font-bold mb-4 border-b pb-2">商品分类</h3>
           </div>
         </div>
+
+        <div class="flex-1">
+          <div class="bg-white p-4 rounded-lg mb-6 shadow-sm flex flex-wrap gap-2" id="filter-tags">
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="product-list">
+          </div>
+
+          <div class="mt-8 text-center" id="pagination-container"></div>
+        </div>
       </div>
-    </main>
+    </div>
+  </main>
 
-    <footer id="footer-container"></footer>
-  </div>
+  <footer id="footer-container"></footer>
+</div>
 
-  <script src="/assets/js/component-loader.js"></script>
-  <script src="/assets/js/axios.js"></script>
-  <script>
-    // 全局变量：存储列表数据、分页信息、当前筛选条件
-    let productList = [];
-    let pagination = { page: 1, pageSize: 8, total: 0, totalPages: 0 };
-    let currentFilter = { categoryId: '', keyword: '' };
+<script src="/assets/js/component-loader.js"></script>
 
-    document.addEventListener('DOMContentLoaded', function() {
-      // 1. 加载公共组件（和之前一致，不改动）
-      loadComponent('layout/header.html', '#header-container', initHeaderEvents);
-      loadComponent('layout/footer.html', '#footer-container');
+<script src="https://cdn.bootcdn.net/ajax/libs/axios/1.6.8/axios.min.js"></script>
 
-      // 2. 初始化：加载分类+商品列表
-      fetchCategoryData(); // 加载商品分类（用于筛选）
-      fetchProductList(); // 加载商品列表
+<script>
+  let productList = [];
+  let pagination = { page: 1, size: 10, total: 0, totalPages: 0 };
+  let currentFilter = { categoryId: '', keyword: '', isPromotion: false };
 
-      // 3. 绑定重新加载按钮事件
-      document.getElementById('retry-btn').addEventListener('click', fetchProductList);
-    });
+  document.addEventListener('DOMContentLoaded', function() {
+    initFilterFromUrl();
+    loadComponent('layout/header.html', '#header-container', initHeaderEvents);
+    loadComponent('layout/footer.html', '#footer-container');
+    fetchCategoryData();
+    fetchProductList();
 
-    /**
-     * 从数据库获取商品分类（用于筛选栏）
-     */
-    function fetchCategoryData() {
-      axios.get('/api/category/list') // 后端分类接口
-        .then(res => {
-          if (res.data.code === 200 && res.data.data.length > 0) {
-            const categories = res.data.data;
-            renderCategoryFilter(categories); // 渲染左侧分类筛选
-            renderFilterTags(categories); // 渲染顶部筛选标签
-          }
-        })
-        .catch(err => console.error('分类加载失败：', err));
+    document.getElementById('retry-btn').addEventListener('click', fetchProductList);
+  });
+
+  // ================= 核心渲染逻辑 (已整合之前的优化) =================
+
+  function renderProductList() {
+    const container = document.getElementById('product-list');
+
+    if (productList.length === 0) {
+      container.innerHTML = '<div class="col-span-full text-center py-20 text-gray-500 bg-white">暂无商品数据</div>';
+      return;
     }
 
-    /**
-     * 从数据库获取商品列表（支持分页、筛选）
-     */
-    function fetchProductList() {
-      showLoading();
-
-      // 接口参数：分页+筛选条件
-      const params = {
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        categoryId: currentFilter.categoryId,
-        keyword: currentFilter.keyword
-      };
-
-      axios.get('/api/product/list', { params }) // 后端商品列表接口
-        .then(res => {
-          if (res.data.code === 200) {
-            productList = res.data.data.list; // 商品列表数据
-            pagination = { ...pagination, ...res.data.data.pagination }; // 分页信息
-            renderProductList(); // 渲染商品列表
-            renderPagination(); // 渲染分页
-            showList(); // 显示列表，隐藏加载状态
-          } else {
-            showError(res.data.msg || '商品列表数据异常');
-          }
-        })
-        .catch(err => {
-          console.error('商品列表加载失败：', err);
-          showError('网络错误，请重试');
-        });
-    }
-
-    /**
-     * 渲染左侧分类筛选栏
-     * @param {Array} categories - 分类数据（[{id: 1, name: '手机数码'}, ...]）
-     */
-    function renderCategoryFilter(categories) {
-      const container = document.getElementById('category-filter');
-      let categoryHtml = '<ul class="space-y-2">';
-      // 新增“全部分类”选项
-      categoryHtml += `<li><button class="w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${!currentFilter.categoryId ? 'text-primary font-medium' : ''}" onclick="changeFilter('categoryId', '')">全部分类</button></li>`;
-      // 循环渲染数据库中的分类
-      categories.forEach(cate => {
-        categoryHtml += `
-          <li>
-            <button class="w-full text-left px-2 py-1 rounded hover:bg-gray-100 ${currentFilter.categoryId === cate.id ? 'text-primary font-medium' : ''}" onclick="changeFilter('categoryId', '${cate.id}')">
-              ${cate.name}
-            </button>
-          </li>
-        `;
-      });
-      categoryHtml += '</ul>';
-      container.innerHTML += categoryHtml;
-    }
-
-    /**
-     * 渲染顶部筛选标签
-     * @param {Array} categories - 分类数据
-     */
-    function renderFilterTags(categories) {
-      const container = document.getElementById('filter-tags');
-      // 全部商品标签
-      let tagHtml = `<button class="filter-item-active px-3 py-1 rounded-md text-sm" onclick="changeFilter('categoryId', '')">全部商品</button>`;
-      // 循环渲染分类标签
-      categories.forEach(cate => {
-        tagHtml += `
-          <button class="px-3 py-1 rounded-md text-sm hover:bg-gray-100 ${currentFilter.categoryId === cate.id ? 'bg-primary text-white' : ''}" onclick="changeFilter('categoryId', '${cate.id}')">
-            ${cate.name}
-          </button>
-        `;
-      });
-      container.innerHTML = tagHtml;
-    }
-
-    /**
-     * 渲染商品列表（循环生成商品卡片）
-     */
-    function renderProductList() {
-      const container = document.getElementById('product-list');
-      if (productList.length === 0) {
-        container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500">暂无商品数据</div>';
-        return;
+    let productHtml = '';
+    productList.forEach(product => {
+      // 1. 图片路径处理 (智能补全)
+      let rawImage = product.main_image || product.image || '';
+      let imageUrl = rawImage;
+      if (rawImage && !rawImage.startsWith('http') && !rawImage.startsWith('/')) {
+        imageUrl = '/assets/image/product/' + rawImage;
       }
 
-      let productHtml = '';
-      // 循环渲染数据库中的商品
-      productList.forEach(product => {
-        productHtml += `
-          <div class="bg-white rounded-lg overflow-hidden product-card-shadow">
-            <img
-              src="${product.mainImage || '/assets/image/error.jpg'}"
-              alt="${product.name || '商品图片'}"
-              class="w-full h-48 object-cover"
-              onerror="this.src='/assets/image/error.jpg'"
-            >
-            <div class="p-4">
-              <h3 class="text-lg font-medium mb-2 line-clamp-2">${product.name || '未知商品'}</h3>
-              <p class="text-primary font-bold text-xl mb-2">¥${product.price || 0}</p>
-              <div class="flex items-center text-yellow-400 text-sm mb-3">
-                ${generateStarRating(product.rating || 0)}
-                <span class="text-gray-500 ml-1">(${product.commentCount || 0}条)</span>
+      // 【修复 3】: 使用在线占位图作为兜底，防止本地 default.png 404 导致裂图
+      // 这里的 URL 是一个纯灰色的图片
+      const fallbackUrl = 'https://via.placeholder.com/300x300/e5e7eb/9ca3af?text=No+Image';
+
+      productHtml += `
+          <div class="bg-white rounded-lg overflow-hidden product-card-shadow group flex flex-col h-full">
+            <a href="/pages/product/detail.html?id=${product.id}" class="block overflow-hidden relative h-48 bg-gray-100">
+              <img
+                src="${imageUrl}"
+                alt="${product.name}"
+                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                onerror="this.onerror=null;this.src='${fallbackUrl}'"
+              >
+            </a>
+            <div class="p-4 flex flex-col flex-1">
+              <h3 class="text-lg font-medium mb-1 line-clamp-2 h-14" title="${product.name}">
+                 <a href="/pages/product/detail.html?id=${product.id}" class="hover:text-primary transition-colors">
+                    ${product.name || '未知商品'}
+                 </a>
+              </h3>
+              <div class="mb-3">
+                 <div class="text-primary font-bold text-xl">¥${Number(product.price).toFixed(2)}</div>
+                 <div class="flex items-center text-yellow-400 text-xs mt-1">
+                    ${generateStarRating(product.rating || 5.0)}
+                    <span class="text-gray-400 ml-2">(${product.commentCount || 0}条)</span>
+                 </div>
               </div>
-              <a href="/pages/product/detail.html?id=${product.id}" class="btn-primary text-sm w-full inline-block text-center">查看详情</a>
+              <div class="mt-auto flex gap-2">
+                 <a href="/pages/product/detail.html?id=${product.id}" class="flex-1 border border-primary text-primary text-center py-1.5 rounded text-sm hover:bg-primary hover:text-white transition-colors">查看详情</a>
+                 <button onclick="alert('加入购物车功能需要对接API')" class="px-3 bg-primary text-white rounded hover:bg-opacity-90">
+                    <i class="fa fa-shopping-cart"></i>
+                 </button>
+              </div>
             </div>
           </div>
         `;
-      });
-      container.innerHTML = productHtml;
+    });
+    container.innerHTML = productHtml;
+  }
+
+  // ================= 以下是保持原有的逻辑功能 =================
+
+  function initFilterFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlCategoryId = urlParams.get('category_id');
+    if (urlCategoryId) currentFilter.categoryId = parseInt(urlCategoryId, 10);
+    const urlKeyword = urlParams.get('keyword');
+    if (urlKeyword) currentFilter.keyword = urlKeyword;
+    const urlPromotion = urlParams.get('promotion');
+    if (urlPromotion === '1') currentFilter.isPromotion = true;
+    const urlPage = urlParams.get('page');
+    if (urlPage) pagination.page = parseInt(urlPage, 10);
+  }
+
+  function fetchCategoryData() {
+    // 这里的 axios 现在因为 CDN 的存在，可以正常工作了
+    axios.get('/api/category/list')
+            .then(res => {
+              if (res.data.code === 200 && res.data.data.length > 0) {
+                const categories = res.data.data;
+                if (!currentFilter.isPromotion) renderCategoryFilter(categories);
+                renderFilterTags(categories);
+              }
+            })
+            .catch(err => console.error(err));
+  }
+
+  function fetchProductList() {
+    showLoading();
+    const params = { page: pagination.page, size: pagination.size };
+    if (currentFilter.categoryId) params.category_id = currentFilter.categoryId;
+    if (currentFilter.keyword) params.keyword = currentFilter.keyword;
+    if (currentFilter.isPromotion) {
+      params.is_promotion = 1;
+      delete params.category_id;
+      delete params.keyword;
     }
 
-    /**
-     * 渲染分页控件
-     */
-    function renderPagination() {
-      const container = document.getElementById('pagination-container');
-      let pageHtml = '<div class="flex justify-center gap-2">';
-      // 上一页
-      pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === 1 ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${pagination.page - 1})" ${pagination.page === 1 ? 'disabled' : ''}>上一页</button>`;
-      // 页码（简化版：只显示当前页、首页、尾页）
-      pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === 1 ? 'bg-primary text-white' : ''}" onclick="changePage(1)">1</button>`;
-      if (pagination.totalPages > 2) {
-        if (pagination.page > 3) pageHtml += '<span class="px-3 py-1">...</span>';
-        if (pagination.page > 2 && pagination.page < pagination.totalPages) {
-          pageHtml += `<button class="px-3 py-1 border rounded bg-primary text-white">${pagination.page}</button>`;
-        }
-        if (pagination.page < pagination.totalPages - 2) pageHtml += '<span class="px-3 py-1">...</span>';
-        pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === pagination.totalPages ? 'bg-primary text-white' : ''}" onclick="changePage(${pagination.totalPages})">${pagination.totalPages}</button>`;
-      } else if (pagination.totalPages === 2) {
-        pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === 2 ? 'bg-primary text-white' : ''}" onclick="changePage(2)">2</button>`;
+    axios.get('/api/product/list', { params })
+            .then(res => {
+              if (res.data.code === 200) {
+                productList = res.data.data.list;
+                pagination.total = res.data.data.total;
+                pagination.totalPages = res.data.data.totalPages;
+                pagination.size = res.data.data.pageSize;
+                renderProductList();
+                renderPagination();
+                showList();
+              } else {
+                showError(res.data.msg || '数据异常');
+              }
+            })
+            .catch(err => {
+              console.error(err); // 现在这里不会报 axios is undefined 了
+              showError('网络请求失败');
+            });
+  }
+
+  /**
+   * 渲染左侧分类筛选栏 (已修改：只显示一级分类)
+   */
+  function renderCategoryFilter(categories) {
+    const container = document.getElementById('category-filter');
+    // 保留标题
+    let html = '<h3 class="font-bold mb-4 border-b pb-2">商品分类</h3><ul class="space-y-2">';
+
+    // 全部分类按钮
+    html += `<li><button class="w-full text-left px-3 py-2 rounded transition-colors ${!currentFilter.categoryId ? 'bg-primary text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'}" onclick="changeFilter('categoryId', '')">全部分类</button></li>`;
+
+    categories.forEach(cate => {
+      // 【修改点】：增加判断，只渲染 parent_id 为 0 的一级分类
+      // 如果后端返回的数据里 parent_id 是数字，就用 === 0
+      if (cate.parent_id === 0) {
+        const isActive = currentFilter.categoryId == cate.id;
+        html += `
+              <li>
+                <button class="w-full text-left px-3 py-2 rounded transition-colors flex items-center justify-between group ${isActive ? 'bg-primary text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'}" onclick="changeFilter('categoryId', ${cate.id})">
+                  <span>${cate.name}</span>
+                  ${isActive ? '<i class="fa fa-check text-xs"></i>' : ''}
+                </button>
+              </li>
+            `;
       }
-      // 下一页
-      pageHtml += `<button class="px-3 py-1 border rounded ${pagination.page === pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${pagination.page + 1})" ${pagination.page === pagination.totalPages ? 'disabled' : ''}>下一页</button>`;
-      pageHtml += '</div>';
-      container.innerHTML = pageHtml;
-    }
+    });
+    html += '</ul>';
+    container.innerHTML = html;
+  }
 
-    /**
-     * 切换筛选条件（分类、关键词等）
-     * @param {string} key - 筛选字段（categoryId/keyword）
-     * @param {string} value - 筛选值
-     */
-    function changeFilter(key, value) {
-      currentFilter[key] = value;
-      pagination.page = 1; // 筛选条件变了，回到第1页
-      fetchProductList(); // 重新加载商品列表
-    }
+  /**
+   * 渲染顶部筛选标签 (已修改：只显示一级分类)
+   */
+  function renderFilterTags(categories) {
+    const container = document.getElementById('filter-tags');
+    let tagHtml = '';
+    const isAllActive = !currentFilter.categoryId && !currentFilter.isPromotion;
 
-    /**
-     * 切换页码
-     * @param {number} page - 目标页码
-     */
-    function changePage(page) {
-      if (page < 1 || page > pagination.totalPages) return;
-      pagination.page = page;
-      fetchProductList(); // 加载目标页商品
-    }
+    tagHtml += `<button class="px-4 py-1.5 rounded-full text-sm transition-colors border ${isAllActive ? 'bg-primary text-white border-primary' : 'bg-white border-gray-200 hover:border-primary hover:text-primary'}" onclick="resetFilterAndFetch()">全部</button>`;
 
-    /**
-     * 生成星级评分（复用detail.html的逻辑，可抽成公共函数）
-     */
-    function generateStarRating(rating) {
-      const fullStar = Math.floor(rating);
-      const hasHalfStar = rating % 1 >= 0.5;
-      const emptyStar = 5 - fullStar - (hasHalfStar ? 1 : 0);
-      let starHtml = '';
-      for (let i = 0; i < fullStar; i++) starHtml += '<i class="fa fa-star"></i>';
-      if (hasHalfStar) starHtml += '<i class="fa fa-star-half-o"></i>';
-      for (let i = 0; i < emptyStar; i++) starHtml += '<i class="fa fa-star-o"></i>';
-      return starHtml;
+    if (currentFilter.isPromotion) {
+      tagHtml += `<button class="px-4 py-1.5 rounded-full text-sm bg-red-100 text-red-600 border border-red-200"><i class="fa fa-fire mr-1"></i> 特惠活动</button>`;
+    } else {
+      categories.forEach(cate => {
+        // 【修改点】：同样增加判断，只渲染一级分类
+        if (cate.parent_id === 0) {
+          const isActive = currentFilter.categoryId == cate.id;
+          tagHtml += `
+                  <button class="px-4 py-1.5 rounded-full text-sm transition-colors border ${isActive ? 'bg-primary text-white border-primary' : 'bg-white border-gray-200 hover:border-primary hover:text-primary'}" onclick="changeFilter('categoryId', ${cate.id})">
+                    ${cate.name}
+                  </button>
+                `;
+        }
+      });
     }
+    container.innerHTML = tagHtml;
+  }
 
-    /**
-     * 显示加载中状态（复用detail的逻辑）
-     */
-    function showLoading() {
-      document.getElementById('loading-container').classList.remove('hidden');
-      document.getElementById('list-container').classList.add('hidden');
-      document.getElementById('error-container').classList.add('hidden');
-    }
+  function renderPagination() {
+    const container = document.getElementById('pagination-container');
+    const { totalPages, page } = pagination;
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
 
-    /**
-     * 显示商品列表（隐藏加载状态）
-     */
-    function showList() {
-      document.getElementById('list-container').classList.remove('hidden');
-      document.getElementById('loading-container').classList.add('hidden');
-      document.getElementById('error-container').classList.add('hidden');
-    }
+    let html = '<div class="flex justify-center gap-2">';
+    html += `<button class="px-3 py-1 border rounded ${page===1?'opacity-50':''}" onclick="changePage(${page-1})" ${page===1?'disabled':''}>上一页</button>`;
+    html += `<span class="px-3 py-1">第 ${page} / ${totalPages} 页</span>`;
+    html += `<button class="px-3 py-1 border rounded ${page===totalPages?'opacity-50':''}" onclick="changePage(${page+1})" ${page===totalPages?'disabled':''}>下一页</button>`;
+    html += '</div>';
+    container.innerHTML = html;
+  }
 
-    /**
-     * 显示错误状态（复用detail的逻辑）
-     */
-    function showError(message) {
-      document.getElementById('error-container').classList.remove('hidden');
-      document.getElementById('error-message').textContent = message;
-      document.getElementById('loading-container').classList.add('hidden');
-      document.getElementById('list-container').classList.add('hidden');
-    }
+  function resetFilterAndFetch() {
+    currentFilter = { categoryId: '', keyword: '', isPromotion: false };
+    pagination.page = 1;
+    const input = document.querySelector('#header-container input');
+    if(input) input.value = '';
+    fetchProductList();
+  }
 
-    /**
-     * 头部菜单事件（和之前一致，不改动）
-     */
-    function initHeaderEvents() {
-      const menuBtn = document.querySelector('.fa-bars')?.parentElement;
-      menuBtn && menuBtn.addEventListener('click', () => alert('移动端菜单展开'));
+  function changeFilter(key, val) {
+    if(currentFilter.isPromotion) currentFilter.isPromotion = false;
+    currentFilter[key] = (key==='categoryId' && val!=='') ? parseInt(val) : val;
+    pagination.page = 1;
+    fetchProductList();
+  }
+
+  function changePage(p) {
+    if(p<1 || p>pagination.totalPages) return;
+    pagination.page = p;
+    fetchProductList();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function generateStarRating(r) {
+    let html = '';
+    for(let i=0; i<5; i++) {
+      if(r >= i+1) html += '<i class="fa fa-star"></i>';
+      else if(r > i) html += '<i class="fa fa-star-half-o"></i>';
+      else html += '<i class="fa fa-star-o"></i>';
     }
-  </script>
+    return html;
+  }
+
+  function showLoading() {
+    document.getElementById('loading-container').classList.remove('hidden');
+    document.getElementById('list-container').classList.add('hidden');
+    document.getElementById('error-container').classList.add('hidden');
+  }
+  function showList() {
+    document.getElementById('list-container').classList.remove('hidden');
+    document.getElementById('loading-container').classList.add('hidden');
+    document.getElementById('error-container').classList.add('hidden');
+  }
+  function showError(msg) {
+    document.getElementById('error-container').classList.remove('hidden');
+    document.getElementById('error-message').innerText = msg;
+    document.getElementById('loading-container').classList.add('hidden');
+    document.getElementById('list-container').classList.add('hidden');
+  }
+
+  function initHeaderEvents() {
+    const input = document.querySelector('#header-container #search-input');
+    if (input) {
+      if (currentFilter.keyword) input.value = currentFilter.keyword;
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') changeFilter('keyword', input.value.trim());
+      });
+      document.querySelector('#header-button')?.addEventListener('click', () => {
+        changeFilter('keyword', input.value.trim());
+      });
+    }
+  }
+</script>
 </body>
 </html>
