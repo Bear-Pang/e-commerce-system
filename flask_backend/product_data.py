@@ -13,6 +13,15 @@ raw_products = [
         "image": "/assets/image/product/iphone15.png"
     },
     {
+        "name": "vivo X100 Pro",
+        "price": 4999.0,
+        "category_id": 1,
+        "is_recommend": 0,  # 0代表不推荐到首页，只在列表页显示
+        "is_sale": 1,
+        "stock": 60,
+        "image": "/assets/image/product/vivo_x100_pro.png"
+    },
+    {
         "name": "华为 Mate 60 Pro+ 16GB+512GB 宣白",
         "price": 8999.0,
         "category_id": 1,
